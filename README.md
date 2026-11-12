@@ -48,6 +48,14 @@ evaluation, so my numbers can sit next to published ones.
 
 A table mapping each feature to its exact file and line will replace this one once the code exists.
 
+## Running the tests
+
+Python 3.11 or newer. The tests use only the standard library's `unittest`:
+
+```bash
+python -m unittest -v
+```
+
 ## Roadmap
 
 1. Package skeleton and `unittest` setup
