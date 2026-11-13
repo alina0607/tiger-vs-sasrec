@@ -62,6 +62,9 @@ uv run mypy recsys tests       # type check
 uv run pytest                  # tests
 ```
 
+`uv run pre-commit install` runs the formatting, lint and type checks before every commit
+([`.pre-commit-config.yaml`](.pre-commit-config.yaml)); pytest runs in CI.
+
 GitHub Actions runs the same four checks on every push and pull request
 ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). On Linux the CPU build of PyTorch is
 installed, so CI does not download the CUDA libraries.
