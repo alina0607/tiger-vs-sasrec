@@ -14,6 +14,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Build the split, print its statistics and return the exit code (0).
+
+    Args:
+        argv: Command-line arguments; `None` reads `sys.argv`.
+    """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data" / "raw")
     parser.add_argument("--meta", action="store_true", help="also fetch item metadata")
