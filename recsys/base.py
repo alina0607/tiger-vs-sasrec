@@ -10,7 +10,7 @@ Item ids are column indices: column ``j`` of a score matrix is item ``j``.
 
 from abc import abstractmethod
 from collections.abc import Sequence
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import torch
 
@@ -34,7 +34,7 @@ class Recommender(metaclass=RecommenderMeta):
     config: ModelConfig
 
     @abstractmethod
-    def fit(self, split) -> None:
+    def fit(self, split: Any) -> None:
         """Train on the training sequences of ``split``."""
 
     @abstractmethod

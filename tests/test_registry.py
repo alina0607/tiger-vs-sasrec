@@ -1,6 +1,6 @@
-import unittest
 from dataclasses import dataclass
-from unittest import mock
+
+import pytest
 
 from recsys.base import Recommender
 from recsys.config import ModelConfig
@@ -12,56 +12,36 @@ class ToyConfig(ModelConfig):
     size: int = 3
 
 
-class RegistryTestCase(unittest.TestCase):
-    """Gives every test an empty registry and restores the real one afterwards.
-
-    Model classes defined inside a test register themselves; without this,
-    they would leak into other tests and into the real registry.
-    """
-
-    def setUp(self):
-        self.enterContext(mock.patch.dict(RecommenderMeta._registry, clear=True))
+# Jobs 1 and 2: checks and registration at the ``class`` statement.
 
 
-class TestClassDefinition(RegistryTestCase):
-    """Job 1 and 2: checks and registration at the ``class`` statement."""
+def test_concrete_model_is_registered_by_name():
+    class Toy(Recommender):
+        name = "toy"
+        config_cls = ToyConfig
 
-    def test_concrete_model_is_registered_by_name(self):
-        class Toy(Recommender):
-            name = "toy"
-            config_cls = ToyConfig
-
-            def fit(self, split):
-                pass
-
-            def recommend(self, histories, k):
-                return []
-
-        self.assertIs(RecommenderMeta.get("toy"), Toy)
-        self.assertEqual(RecommenderMeta.names(), ["toy"])
-
-    def test_abstract_class_needs_no_name_and_is_not_registered(self):
-        class StillAbstract(Recommender):
+        def fit(self, split):
             pass
 
-        self.assertEqual(RecommenderMeta.names(), [])
-        self.assertTrue(StillAbstract.__abstractmethods__)
+        def recommend(self, histories, k):
+            return []
 
-    def test_missing_name_fails_at_class_definition(self):
-        with self.assertRaisesRegex(TypeError, "must set a class attribute 'name'"):
+    assert RecommenderMeta.get("toy") is Toy
+    assert RecommenderMeta.names() == ["toy"]
 
-            class NoName(Recommender):
-                config_cls = ToyConfig
 
-                def fit(self, split):
-                    pass
+def test_abstract_class_needs_no_name_and_is_not_registered():
+    class StillAbstract(Recommender):
+        pass
 
-                def recommend(self, histories, k):
-                    return []
+    assert RecommenderMeta.names() == []
+    assert StillAbstract.__abstractmethods__
 
-    def test_name_inherited_from_a_parent_is_rejected(self):
-        class Parent(Recommender):
-            name = "parent"
+
+def test_missing_name_fails_at_class_definition():
+    with pytest.raises(TypeError, match="must set a class attribute 'name'"):
+
+        class NoName(Recommender):
             config_cls = ToyConfig
 
             def fit(self, split):
@@ -70,30 +50,55 @@ class TestClassDefinition(RegistryTestCase):
             def recommend(self, histories, k):
                 return []
 
-        with self.assertRaisesRegex(TypeError, "must set a class attribute 'name'"):
 
-            class Child(Parent):
+def test_name_inherited_from_a_parent_is_rejected():
+    class Parent(Recommender):
+        name = "parent"
+        config_cls = ToyConfig
+
+        def fit(self, split):
+            pass
+
+        def recommend(self, histories, k):
+            return []
+
+    with pytest.raises(TypeError, match="must set a class attribute 'name'"):
+
+        class Child(Parent):
+            pass
+
+
+@pytest.mark.parametrize(
+    "bad", [None, dict, ToyConfig()], ids=["none", "not-a-config", "an-instance"]
+)
+def test_config_cls_must_be_a_model_config(bad):
+    with pytest.raises(TypeError, match="subclass of ModelConfig"):
+
+        class BadConfig(Recommender):
+            name = "bad"
+            config_cls = bad
+
+            def fit(self, split):
                 pass
 
-    def test_config_cls_must_be_a_model_config(self):
-        for bad in (None, dict, ToyConfig()):
-            with (
-                self.subTest(config_cls=bad),
-                self.assertRaisesRegex(TypeError, "subclass of ModelConfig"),
-            ):
+            def recommend(self, histories, k):
+                return []
 
-                class BadConfig(Recommender):
-                    name = "bad"
-                    config_cls = bad
 
-                    def fit(self, split):
-                        pass
+def test_duplicate_name_is_rejected():
+    class First(Recommender):
+        name = "same"
+        config_cls = ToyConfig
 
-                    def recommend(self, histories, k):
-                        return []
+        def fit(self, split):
+            pass
 
-    def test_duplicate_name_is_rejected(self):
-        class First(Recommender):
+        def recommend(self, histories, k):
+            return []
+
+    with pytest.raises(TypeError, match="already used"):
+
+        class Second(Recommender):
             name = "same"
             config_cls = ToyConfig
 
@@ -103,156 +108,144 @@ class TestClassDefinition(RegistryTestCase):
             def recommend(self, histories, k):
                 return []
 
-        with self.assertRaisesRegex(TypeError, "already used"):
-
-            class Second(Recommender):
-                name = "same"
-                config_cls = ToyConfig
-
-                def fit(self, split):
-                    pass
-
-                def recommend(self, histories, k):
-                    return []
-
-        self.assertIs(RecommenderMeta.get("same"), First)
-
-    def test_unknown_name_lists_the_registered_ones(self):
-        class Toy(Recommender):
-            name = "toy"
-            config_cls = ToyConfig
-
-            def fit(self, split):
-                pass
-
-            def recommend(self, histories, k):
-                return []
-
-        with self.assertRaisesRegex(KeyError, "registered: toy"):
-            RecommenderMeta.get("sasrec")
-
-    def test_registry_view_is_read_only(self):
-        with self.assertRaises(TypeError):
-            RecommenderMeta.registry()["toy"] = object
+    assert RecommenderMeta.get("same") is First
 
 
-class TestInstanceCheck(RegistryTestCase):
-    """Job 3: the finished object is checked on every instantiation."""
+def test_unknown_name_lists_the_registered_ones():
+    class Toy(Recommender):
+        name = "toy"
+        config_cls = ToyConfig
 
-    def setUp(self):
-        super().setUp()
-
-        class Toy(Recommender):
-            name = "toy"
-            config_cls = ToyConfig
-
-            def __init__(self, config):
-                self.config = config
-
-            def fit(self, split):
-                pass
-
-            def recommend(self, histories, k):
-                return []
-
-        self.Toy = Toy
-
-    def test_correct_config_is_accepted(self):
-        model = self.Toy(ToyConfig(size=5))
-        self.assertEqual(model.config.size, 5)
-
-    def test_wrong_config_type_is_rejected(self):
-        with self.assertRaisesRegex(TypeError, "must be a ToyConfig, got dict"):
-            self.Toy({"size": 5})
-
-    def test_parent_config_type_is_rejected(self):
-        with self.assertRaisesRegex(TypeError, "got ModelConfig"):
-            self.Toy(ModelConfig())
-
-    def test_missing_config_is_rejected(self):
-        class Forgetful(Recommender):
-            name = "forgetful"
-            config_cls = ToyConfig
-
-            def __init__(self, config):
-                pass  # never stores the config
-
-            def fit(self, split):
-                pass
-
-            def recommend(self, histories, k):
-                return []
-
-        with self.assertRaisesRegex(TypeError, "got NoneType"):
-            Forgetful(ToyConfig())
-
-    def test_check_runs_after_every_init(self):
-        # The parent's __init__ runs before the child stores its config. A
-        # check inside the parent's __init__ would see no config; the
-        # metaclass check runs after both and sees the finished object.
-        seen_by_parent = []
-
-        class Parent(Recommender):
-            def __init__(self):
-                seen_by_parent.append(getattr(self, "config", None))
-
-        class Child(Parent):
-            name = "child"
-            config_cls = ToyConfig
-
-            def __init__(self, config):
-                super().__init__()
-                self.config = config
-
-            def fit(self, split):
-                pass
-
-            def recommend(self, histories, k):
-                return []
-
-        model = Child(ToyConfig())
-        self.assertEqual(seen_by_parent, [None])
-        self.assertIsInstance(model.config, ToyConfig)
-
-
-class TestInitSubclassComparison(unittest.TestCase):
-    """Why the metaclass and not only ``__init_subclass__``.
-
-    ``__init_subclass__`` runs once per class definition, so it can register
-    classes and check their attributes (jobs 1 and 2). It never runs when an
-    instance is created, so it cannot check the finished object (job 3).
-    """
-
-    def test_init_subclass_runs_once_per_class_not_per_instance(self):
-        calls = []
-
-        class Base:
-            def __init_subclass__(cls, **kwargs):
-                super().__init_subclass__(**kwargs)
-                calls.append(cls.__name__)
-
-        class Model(Base):
+        def fit(self, split):
             pass
 
-        Model()
-        Model()
-        self.assertEqual(calls, ["Model"])
+        def recommend(self, histories, k):
+            return []
 
-    def test_metaclass_call_runs_on_every_instance(self):
-        calls = []
+    with pytest.raises(KeyError, match="registered: toy"):
+        RecommenderMeta.get("sasrec")
 
-        class CountingMeta(type):
-            def __call__(cls, *args, **kwargs):
-                calls.append(cls.__name__)
-                return super().__call__(*args, **kwargs)
 
-        class Model(metaclass=CountingMeta):
+def test_registry_view_is_read_only():
+    with pytest.raises(TypeError):
+        # The write is the point of the test; mypy rightly reports it.
+        RecommenderMeta.registry()["toy"] = object  # type: ignore[index]
+
+
+# Job 3: the finished object is checked on every instantiation.
+
+
+@pytest.fixture
+def toy_cls():
+    class Toy(Recommender):
+        name = "toy"
+        config_cls = ToyConfig
+
+        def __init__(self, config):
+            self.config = config
+
+        def fit(self, split):
             pass
 
-        Model()
-        Model()
-        self.assertEqual(calls, ["Model", "Model"])
+        def recommend(self, histories, k):
+            return []
+
+    return Toy
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_correct_config_is_accepted(toy_cls):
+    assert toy_cls(ToyConfig(size=5)).config.size == 5
+
+
+@pytest.mark.parametrize(
+    ("config", "type_name"),
+    [({"size": 5}, "dict"), (ModelConfig(), "ModelConfig")],
+    ids=["dict", "parent-config"],
+)
+def test_wrong_config_type_is_rejected(toy_cls, config, type_name):
+    with pytest.raises(TypeError, match=f"must be a ToyConfig, got {type_name}$"):
+        toy_cls(config)
+
+
+def test_missing_config_is_rejected():
+    class Forgetful(Recommender):
+        name = "forgetful"
+        config_cls = ToyConfig
+
+        def __init__(self, config):
+            pass  # never stores the config
+
+        def fit(self, split):
+            pass
+
+        def recommend(self, histories, k):
+            return []
+
+    with pytest.raises(TypeError, match="got NoneType"):
+        Forgetful(ToyConfig())
+
+
+def test_check_runs_after_every_init():
+    # The parent's __init__ runs before the child stores its config. A
+    # check inside the parent's __init__ would see no config; the
+    # metaclass check runs after both and sees the finished object.
+    seen_by_parent = []
+
+    class Parent(Recommender):
+        def __init__(self):
+            seen_by_parent.append(getattr(self, "config", None))
+
+    class Child(Parent):
+        name = "child"
+        config_cls = ToyConfig
+
+        def __init__(self, config):
+            super().__init__()
+            self.config = config
+
+        def fit(self, split):
+            pass
+
+        def recommend(self, histories, k):
+            return []
+
+    model = Child(ToyConfig())
+    assert seen_by_parent == [None]
+    assert isinstance(model.config, ToyConfig)
+
+
+# Why the metaclass and not only ``__init_subclass__``: the hook runs once per
+# class definition, so it can register classes and check their attributes
+# (jobs 1 and 2), but it never runs when an instance is created (job 3).
+
+
+def test_init_subclass_runs_once_per_class_not_per_instance():
+    calls = []
+
+    class Base:
+        def __init_subclass__(cls, **kwargs):
+            super().__init_subclass__(**kwargs)
+            calls.append(cls.__name__)
+
+    class Model(Base):
+        pass
+
+    Model()
+    Model()
+    assert calls == ["Model"]
+
+
+def test_metaclass_call_runs_on_every_instance():
+    calls = []
+
+    class CountingMeta(type):
+        def __call__(cls, *args, **kwargs):
+            calls.append(cls.__name__)
+            return super().__call__(*args, **kwargs)
+
+    class Model(metaclass=CountingMeta):
+        pass
+
+    Model()
+    Model()
+    assert calls == ["Model", "Model"]

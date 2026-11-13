@@ -35,6 +35,9 @@ class RecommenderMeta(ABCMeta):
     # One registry shared by the whole hierarchy: model name -> model class.
     _registry: ClassVar[dict[str, type]] = {}
 
+    # Set by every concrete model class and checked in ``__new__``.
+    config_cls: type[ModelConfig]
+
     def __new__(
         mcls,
         name: str,
@@ -48,19 +51,19 @@ class RecommenderMeta(ABCMeta):
         # models: they need no name and are not registered.
         if cls.__abstractmethods__:
             return cls
-        mcls._check_declarations(cls, namespace)
-        if cls.name in mcls._registry:
-            other = mcls._registry[cls.name]
+        model_name = mcls._check_declarations(cls, namespace)
+        if model_name in mcls._registry:
+            other = mcls._registry[model_name]
             raise TypeError(
-                f"{cls.__qualname__}: name {cls.name!r} is already used by "
+                f"{cls.__qualname__}: name {model_name!r} is already used by "
                 f"{other.__module__}.{other.__qualname__}"
             )
-        mcls._registry[cls.name] = cls
+        mcls._registry[model_name] = cls
         return cls
 
     @staticmethod
-    def _check_declarations(cls: type, namespace: dict[str, Any]) -> None:
-        """Raise ``TypeError`` unless ``cls`` declares a usable name and config."""
+    def _check_declarations(cls: type, namespace: dict[str, Any]) -> str:
+        """Return the model name, or raise ``TypeError`` if a declaration is missing."""
         # ``name`` must be set on the class itself: a subclass that inherited
         # its parent's name would silently replace the parent in the registry.
         model_name = namespace.get("name")
@@ -74,6 +77,7 @@ class RecommenderMeta(ABCMeta):
             raise TypeError(
                 f"{cls.__qualname__} must set 'config_cls' to a subclass of ModelConfig"
             )
+        return model_name
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         # ``super().__call__`` runs ``__new__`` and every ``__init__`` in the
