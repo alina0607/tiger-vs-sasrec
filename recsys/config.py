@@ -18,3 +18,8 @@ class ModelConfig:
     """
 
     seed: int = 42
+
+
+@dataclass(frozen=True)
+class PopularityConfig(ModelConfig):
+    """Configuration of `PopularityRecommender`; it has nothing to tune."""

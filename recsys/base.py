@@ -10,11 +10,12 @@ Item ids are column indices: column `j` of a score matrix is item `j`.
 
 from abc import abstractmethod
 from collections.abc import Sequence
-from typing import Any, ClassVar
+from typing import ClassVar
 
 import torch
 
 from recsys.config import ModelConfig
+from recsys.data import Split
 from recsys.registry import RecommenderMeta
 
 # One user's interaction history: item ids, oldest first.
@@ -34,7 +35,7 @@ class Recommender(metaclass=RecommenderMeta):
     config: ModelConfig
 
     @abstractmethod
-    def fit(self, split: Any) -> None:
+    def fit(self, split: Split) -> None:
         """Train on the training sequences of `split`.
 
         Args:

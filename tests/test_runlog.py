@@ -20,7 +20,11 @@ def test_save_writes_json_that_reads_back(tmp_path):
     log.add_timing("fit", 1.25)
     path = tmp_path / "runs" / "2026-11-12" / "log.json"  # parents do not exist yet
     log.save(path)
-    assert json.loads(path.read_text(encoding="utf-8")) == {"timings": {"fit": [1.25]}}
+    assert json.loads(path.read_text(encoding="utf-8")) == {
+        "models": [],
+        "timings": {"fit": [1.25]},
+        "results": {},
+    }
 
 
 def test_no_log_is_active_outside_a_with_block():
@@ -82,3 +86,13 @@ def test_each_thread_sees_only_its_own_log():
 def test_a_thread_pool_worker_does_not_inherit_the_active_log():
     with RunLog(), ThreadPoolExecutor(max_workers=1) as pool:
         assert pool.submit(current_run_log).result() is None
+
+
+def test_add_result_and_to_dict_return_copies():
+    log = RunLog()
+    scores = {"recall@10": 0.5}
+    log.add_result("test", scores)
+    scores["recall@10"] = 0.0
+    out = log.to_dict()
+    out["results"]["test"]["recall@10"] = 1.0
+    assert log.results == {"test": {"recall@10": 0.5}}

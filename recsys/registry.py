@@ -9,7 +9,8 @@
    string (for example, from the command line).
 3. When a model is instantiated, check the finished object after every
    `__init__` in its hierarchy has run: it must hold a config of the
-   declared type.
+   declared type. The model's name and config then go into the active
+   `RunLog`, if any.
 
 Jobs 1 and 2 could also be done with `__init_subclass__`. Job 3 needs to
 run after construction, on every instance, and without relying on each
@@ -22,6 +23,7 @@ from types import MappingProxyType
 from typing import Any, ClassVar
 
 from recsys.config import ModelConfig
+from recsys.runlog import current_run_log
 
 
 class RecommenderMeta(ABCMeta):
@@ -36,6 +38,7 @@ class RecommenderMeta(ABCMeta):
     _registry: ClassVar[dict[str, type]] = {}
 
     # Set by every concrete model class and checked in `__new__`.
+    name: str
     config_cls: type[ModelConfig]
 
     def __new__(
@@ -97,6 +100,9 @@ class RecommenderMeta(ABCMeta):
                 f"{cls.__qualname__}.config must be a {cls.config_cls.__qualname__}, "
                 f"got {type(config).__qualname__}"
             )
+        log = current_run_log()
+        if log is not None:
+            log.add_model(cls.name, config)
         return instance
 
     @classmethod

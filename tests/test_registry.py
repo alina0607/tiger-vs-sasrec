@@ -5,6 +5,7 @@ import pytest
 from recsys.base import Recommender
 from recsys.config import ModelConfig
 from recsys.registry import RecommenderMeta
+from recsys.runlog import RunLog
 
 
 @dataclass(frozen=True)
@@ -249,3 +250,19 @@ def test_metaclass_call_runs_on_every_instance():
     Model()
     Model()
     assert calls == ["Model", "Model"]
+
+
+def test_a_built_model_is_recorded_in_the_active_run_log(toy_cls):
+    with RunLog() as log:
+        toy_cls(ToyConfig(size=5))
+    assert log.models == [{"name": "toy", "config": {"seed": 42, "size": 5}}]
+
+
+def test_no_run_log_means_nothing_is_recorded(toy_cls):
+    toy_cls(ToyConfig(size=5))  # must not fail without an active log
+
+
+def test_a_rejected_model_is_not_recorded(toy_cls):
+    with RunLog() as log, pytest.raises(TypeError):
+        toy_cls({"size": 5})
+    assert log.models == []

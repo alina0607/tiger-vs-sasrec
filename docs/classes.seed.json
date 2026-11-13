@@ -26,7 +26,7 @@
         {
           "name": "fit",
           "doc": "Train on the training sequences of `split`.\n\nArgs:\n    split: The dataset split to train on.",
-          "source": "@abstractmethod\ndef fit(self, split: Any) -> None:\n    \"\"\"Train on the training sequences of `split`.\n\n    Args:\n        split: The dataset split to train on.\n    \"\"\""
+          "source": "@abstractmethod\ndef fit(self, split: Split) -> None:\n    \"\"\"Train on the training sequences of `split`.\n\n    Args:\n        split: The dataset split to train on.\n    \"\"\""
         },
         {
           "name": "recommend",
@@ -69,6 +69,16 @@
           "int"
         ]
       ],
+      "methods": []
+    },
+    {
+      "key": "recsys/config.py#PopularityConfig",
+      "name": "PopularityConfig",
+      "module": "recsys/config.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "Configuration of `PopularityRecommender`; it has nothing to tune.",
+      "attributes": [],
       "methods": []
     },
     {
@@ -323,6 +333,49 @@
       "methods": []
     },
     {
+      "key": "recsys/models/popularity.py#PopularityRecommender",
+      "name": "PopularityRecommender",
+      "module": "recsys/models/popularity.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "Gives every user the same ranking: items by how often they were bought.\n\nCounts come from the training sequences only, the data SASRec trains on.\nTies go to the lower item id, so the ranking does not depend on how\n`torch.topk` orders equal scores.",
+      "attributes": [
+        [
+          "name",
+          ""
+        ],
+        [
+          "config_cls",
+          ""
+        ],
+        [
+          "config",
+          ""
+        ],
+        [
+          "_scores",
+          "torch.Tensor | None"
+        ]
+      ],
+      "methods": [
+        {
+          "name": "__init__",
+          "doc": "",
+          "source": "def __init__(self, config: PopularityConfig | None = None) -> None:\n    self.config = config or PopularityConfig()\n    self._scores: torch.Tensor | None = None"
+        },
+        {
+          "name": "fit",
+          "doc": "Count how often each item appears in `split.train()`.",
+          "source": "@timed\ndef fit(self, split: Split) -> None:\n    \"\"\"Count how often each item appears in `split.train()`.\"\"\"\n    counts = Counter(item for seq in split.train() for item in seq)\n    order = sorted(range(split.n_items), key=lambda item: (-counts[item], item))\n    # Score = how many items rank below it, so every score is distinct.\n    scores = torch.empty(split.n_items)\n    scores[order] = torch.arange(split.n_items - 1, -1, -1, dtype=torch.float32)\n    self._scores = scores"
+        },
+        {
+          "name": "score_all",
+          "doc": "Return the same popularity scores for every history.\n\nRaises:\n    RuntimeError: If `fit` has not been called.",
+          "source": "def score_all(self, histories: Sequence[History]) -> torch.Tensor:\n    \"\"\"Return the same popularity scores for every history.\n\n    Raises:\n        RuntimeError: If `fit` has not been called.\n    \"\"\"\n    if self._scores is None:\n        raise RuntimeError(\"call fit() before scoring\")\n    return self._scores.expand(len(histories), -1)"
+        }
+      ]
+    },
+    {
       "key": "recsys/registry.py#RecommenderMeta",
       "name": "RecommenderMeta",
       "module": "recsys/registry.py",
@@ -333,6 +386,10 @@
         [
           "_registry",
           "ClassVar[dict[str, type]]"
+        ],
+        [
+          "name",
+          "str"
         ],
         [
           "config_cls",
@@ -353,7 +410,7 @@
         {
           "name": "__call__",
           "doc": "",
-          "source": "def __call__(cls, *args: Any, **kwargs: Any) -> Any:\n    # `super().__call__` runs `__new__` and every `__init__` in the\n    # hierarchy; the instance returned here is fully constructed.\n    instance = super().__call__(*args, **kwargs)\n    config = getattr(instance, \"config\", None)\n    if not isinstance(config, cls.config_cls):\n        raise TypeError(\n            f\"{cls.__qualname__}.config must be a {cls.config_cls.__qualname__}, \"\n            f\"got {type(config).__qualname__}\"\n        )\n    return instance"
+          "source": "def __call__(cls, *args: Any, **kwargs: Any) -> Any:\n    # `super().__call__` runs `__new__` and every `__init__` in the\n    # hierarchy; the instance returned here is fully constructed.\n    instance = super().__call__(*args, **kwargs)\n    config = getattr(instance, \"config\", None)\n    if not isinstance(config, cls.config_cls):\n        raise TypeError(\n            f\"{cls.__qualname__}.config must be a {cls.config_cls.__qualname__}, \"\n            f\"got {type(config).__qualname__}\"\n        )\n    log = current_run_log()\n    if log is not None:\n        log.add_model(cls.name, config)\n    return instance"
         },
         {
           "name": "get",
@@ -378,11 +435,19 @@
       "module": "recsys/runlog.py",
       "kind": "class",
       "lang": "python",
-      "doc": "Seconds per call, keyed by label.\n\nAttributes:\n    timings: Label (usually a qualified function name) -> seconds of each\n        call, in call order.",
+      "doc": "What one run built, how long each step took, and what it scored.\n\nAttributes:\n    models: Name and configuration of each model built, in build order.\n    timings: Label (usually a qualified function name) -> seconds of each\n        call, in call order.\n    results: Part (`\"valid\"` or `\"test\"`) -> metric scores.",
       "attributes": [
+        [
+          "models",
+          "list[dict[str, Any]]"
+        ],
         [
           "timings",
           "dict[str, list[float]]"
+        ],
+        [
+          "results",
+          "dict[str, dict[str, float]]"
         ],
         [
           "_token",
@@ -391,14 +456,24 @@
       ],
       "methods": [
         {
+          "name": "add_model",
+          "doc": "Record a model as it is built.\n\nArgs:\n    name: The model's registered name.\n    config: Its configuration.",
+          "source": "def add_model(self, name: str, config: ModelConfig) -> None:\n    \"\"\"Record a model as it is built.\n\n    Args:\n        name: The model's registered name.\n        config: Its configuration.\n    \"\"\"\n    self.models.append({\"name\": name, \"config\": asdict(config)})"
+        },
+        {
           "name": "add_timing",
           "doc": "Record one call.\n\nArgs:\n    label: What was timed, for example `SASRec.fit`.\n    seconds: How long the call took.",
           "source": "def add_timing(self, label: str, seconds: float) -> None:\n    \"\"\"Record one call.\n\n    Args:\n        label: What was timed, for example `SASRec.fit`.\n        seconds: How long the call took.\n    \"\"\"\n    self.timings.setdefault(label, []).append(seconds)"
         },
         {
+          "name": "add_result",
+          "doc": "Record the scores of one evaluation.\n\nArgs:\n    part: Which cases were scored, for example `\"test\"`.\n    scores: Metric name -> mean score.",
+          "source": "def add_result(self, part: str, scores: dict[str, float]) -> None:\n    \"\"\"Record the scores of one evaluation.\n\n    Args:\n        part: Which cases were scored, for example `\"test\"`.\n        scores: Metric name -> mean score.\n    \"\"\"\n    self.results[part] = dict(scores)"
+        },
+        {
           "name": "to_dict",
-          "doc": "Return the log as JSON-ready data.",
-          "source": "def to_dict(self) -> dict[str, dict[str, list[float]]]:\n    \"\"\"Return the log as JSON-ready data.\"\"\"\n    return {\"timings\": {label: list(s) for label, s in self.timings.items()}}"
+          "doc": "Return the log as JSON-ready data (copies, not the live lists).",
+          "source": "def to_dict(self) -> dict[str, Any]:\n    \"\"\"Return the log as JSON-ready data (copies, not the live lists).\"\"\"\n    return {\n        \"models\": [dict(m, config=dict(m[\"config\"])) for m in self.models],\n        \"timings\": {label: list(s) for label, s in self.timings.items()},\n        \"results\": {part: dict(s) for part, s in self.results.items()},\n    }"
         },
         {
           "name": "save",
@@ -464,6 +539,12 @@
     {
       "src": "recsys/base.py#ScoringRecommender",
       "dst": "recsys/base.py#Recommender",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/config.py#PopularityConfig",
+      "dst": "recsys/config.py#ModelConfig",
       "kind": "inherits",
       "lazy": false
     },
@@ -537,6 +618,12 @@
       "src": "recsys/metrics.py#recall",
       "dst": "recsys/metrics.py#metric",
       "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/popularity.py#PopularityRecommender",
+      "dst": "recsys/base.py#ScoringRecommender",
+      "kind": "inherits",
       "lazy": false
     },
     {
