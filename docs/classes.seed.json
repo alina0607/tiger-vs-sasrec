@@ -263,6 +263,66 @@
       "methods": []
     },
     {
+      "key": "recsys/evaluate.py#answer_ranks",
+      "name": "answer_ranks",
+      "module": "recsys/evaluate.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Rank of each case's correct item in the model's top `top` (1 = first).\n\n`None` means the item is not in the list.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/evaluate.py#evaluate",
+      "name": "evaluate",
+      "module": "recsys/evaluate.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Average every registered metric at every cutoff in `ks`.\n\nArgs:\n    model: A fitted recommender.\n    split: The data; its `valid()` or `test()` cases are scored.\n    part: Which cases to score.\n    ks: Cutoffs; the model is asked for its top `max(ks)` items.\n    batch_size: Users per `recommend` call. Bounds memory: a scoring model\n        builds a `batch_size x n_items` score matrix.\n\nReturns:\n    Mean score per `\"name@k\"`, for example `{\"ndcg@10\": 0.03, ...}`.\n\nRaises:\n    ValueError: If `part` is unknown or the model returns too few items.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/metrics.py#metric",
+      "name": "metric",
+      "module": "recsys/metrics.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Register the decorated function as the metric `name`.\n\nThe function itself is returned unchanged.\n\nRaises:\n    ValueError: If a metric with this name is already registered.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/metrics.py#ndcg",
+      "name": "ndcg",
+      "module": "recsys/metrics.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "`1 / log2(rank + 1)` if the correct item is in the top `k`, else 0.\n\nWith one correct item per case the ideal ranking scores 1, so no further\nnormalisation is needed.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/metrics.py#recall",
+      "name": "recall",
+      "module": "recsys/metrics.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "1 if the correct item is in the top `k`, else 0.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/metrics.py#registered",
+      "name": "registered",
+      "module": "recsys/metrics.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Return a read-only view of the registered metrics, by name.",
+      "attributes": [],
+      "methods": []
+    },
+    {
       "key": "recsys/registry.py#RecommenderMeta",
       "name": "RecommenderMeta",
       "module": "recsys/registry.py",
@@ -452,6 +512,30 @@
     {
       "src": "recsys/decorators.py#timed",
       "dst": "recsys/runlog.py#current_run_log",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/evaluate.py#evaluate",
+      "dst": "recsys/evaluate.py#answer_ranks",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/evaluate.py#evaluate",
+      "dst": "recsys/metrics.py#registered",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/metrics.py#ndcg",
+      "dst": "recsys/metrics.py#metric",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/metrics.py#recall",
+      "dst": "recsys/metrics.py#metric",
       "kind": "calls",
       "lazy": false
     },
