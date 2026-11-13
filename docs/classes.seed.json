@@ -627,6 +627,12 @@
       "lazy": false
     },
     {
+      "src": "recsys/models/popularity.py#PopularityRecommender",
+      "dst": "recsys/config.py#PopularityConfig",
+      "kind": "composition",
+      "lazy": false
+    },
+    {
       "src": "recsys/registry.py#RecommenderMeta",
       "dst": "abc#ABCMeta",
       "kind": "inherits",
