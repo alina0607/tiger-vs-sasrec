@@ -72,6 +72,187 @@
       "methods": []
     },
     {
+      "key": "recsys/data.py#RemoteFile",
+      "name": "RemoteFile",
+      "module": "recsys/data.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "A file to download and the checks it must pass.\n\nAttributes:\n    name: File name, both on the server and on disk.\n    size: Size in bytes.\n    sha256: Hex SHA-256 of the whole file.",
+      "attributes": [
+        [
+          "name",
+          "str"
+        ],
+        [
+          "size",
+          "int"
+        ],
+        [
+          "sha256",
+          "str"
+        ]
+      ],
+      "methods": [
+        {
+          "name": "url",
+          "doc": "",
+          "source": "@property\ndef url(self) -> str:\n    return _BASE_URL + self.name"
+        }
+      ]
+    },
+    {
+      "key": "recsys/data.py#Review",
+      "name": "Review",
+      "module": "recsys/data.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "One review: who reviewed which item, and when (Unix seconds, day precision).",
+      "attributes": [
+        [
+          "user",
+          "str"
+        ],
+        [
+          "item",
+          "str"
+        ],
+        [
+          "time",
+          "int"
+        ]
+      ],
+      "methods": []
+    },
+    {
+      "key": "recsys/data.py#Split",
+      "name": "Split",
+      "module": "recsys/data.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "Every user's item sequence, cut by leave-one-out.\n\nUser `u`'s sequence is `sequences[u]`, oldest first. Ids are assigned in\norder of first appearance, as S3-Rec does, but start at 0: item `j` is\ncolumn `j` of a score matrix.\n\nAttributes:\n    sequences: Item ids per user, oldest first.\n    users: Original user id (`reviewerID`) of each user index.\n    items: Original item id (`asin`) of each item index.",
+      "attributes": [
+        [
+          "sequences",
+          "tuple[tuple[int, ...], ...]"
+        ],
+        [
+          "users",
+          "tuple[str, ...]"
+        ],
+        [
+          "items",
+          "tuple[str, ...]"
+        ]
+      ],
+      "methods": [
+        {
+          "name": "__post_init__",
+          "doc": "",
+          "source": "def __post_init__(self) -> None:\n    short = sum(len(s) < 3 for s in self.sequences)\n    if short:\n        raise ValueError(f\"{short} users have fewer than 3 items\")"
+        },
+        {
+          "name": "n_users",
+          "doc": "",
+          "source": "@property\ndef n_users(self) -> int:\n    return len(self.users)"
+        },
+        {
+          "name": "n_items",
+          "doc": "",
+          "source": "@property\ndef n_items(self) -> int:\n    return len(self.items)"
+        },
+        {
+          "name": "n_interactions",
+          "doc": "",
+          "source": "@property\ndef n_interactions(self) -> int:\n    return sum(map(len, self.sequences))"
+        },
+        {
+          "name": "train",
+          "doc": "Training sequences: everything but the last two items.",
+          "source": "def train(self) -> list[tuple[int, ...]]:\n    \"\"\"Training sequences: everything but the last two items.\"\"\"\n    return [s[:-2] for s in self.sequences]"
+        },
+        {
+          "name": "valid",
+          "doc": "Validation cases: (history without the last two items, second to last).",
+          "source": "def valid(self) -> tuple[list[tuple[int, ...]], list[int]]:\n    \"\"\"Validation cases: (history without the last two items, second to last).\"\"\"\n    return [s[:-2] for s in self.sequences], [s[-2] for s in self.sequences]"
+        },
+        {
+          "name": "test",
+          "doc": "Test cases: (history without the last item, last item).",
+          "source": "def test(self) -> tuple[list[tuple[int, ...]], list[int]]:\n    \"\"\"Test cases: (history without the last item, last item).\"\"\"\n    return [s[:-1] for s in self.sequences], [s[-1] for s in self.sequences]"
+        }
+      ]
+    },
+    {
+      "key": "recsys/data.py#_verify",
+      "name": "_verify",
+      "module": "recsys/data.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/data.py#download",
+      "name": "download",
+      "module": "recsys/data.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Download `remote` into `dest_dir` unless a verified copy is already there.\n\nThe data is written to a `.part` file and renamed only after the size and\nhash match, so an interrupted download never leaves a file that looks done.\n\nArgs:\n    remote: The file to fetch.\n    dest_dir: Where to store it. Created if missing.\n    url: Fetch from here instead of `remote.url` (used by the tests).\n\nReturns:\n    The path of the verified file.\n\nRaises:\n    ValueError: If the existing or downloaded file has the wrong size or hash.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/data.py#k_core",
+      "name": "k_core",
+      "module": "recsys/data.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Drop users and items with fewer than `k` reviews until none are left.\n\nRemoving a user can push an item below `k` and the other way round, so\nthe filter repeats until nothing changes. File order is kept.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/data.py#leave_one_out",
+      "name": "leave_one_out",
+      "module": "recsys/data.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Group reviews by user, sort each user's by time and number the ids.\n\n`list.sort` is stable, so reviews with the same time keep their file\norder; S3-Rec relies on the same behaviour.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/data.py#load_beauty",
+      "name": "load_beauty",
+      "module": "recsys/data.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Download (if needed), filter and split the Beauty 5-core reviews.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/data.py#read_reviews",
+      "name": "read_reviews",
+      "module": "recsys/data.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Read a gzipped review file with one JSON object per line, in file order.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/data.py#sha256_of",
+      "name": "sha256_of",
+      "module": "recsys/data.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Return the hex SHA-256 of a file, reading it in 1 MiB chunks.",
+      "attributes": [],
+      "methods": []
+    },
+    {
       "key": "recsys/decorators.py#timed",
       "name": "timed",
       "module": "recsys/decorators.py",
@@ -195,6 +376,16 @@
       "doc": "",
       "attributes": [],
       "methods": []
+    },
+    {
+      "key": "typing#NamedTuple",
+      "name": "NamedTuple",
+      "module": "typing",
+      "kind": "stdlib",
+      "lang": "python",
+      "doc": "",
+      "attributes": [],
+      "methods": []
     }
   ],
   "relations": [
@@ -214,6 +405,48 @@
       "src": "recsys/base.py#ScoringRecommender",
       "dst": "recsys/base.py#Recommender",
       "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/data.py#Review",
+      "dst": "typing#NamedTuple",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/data.py#_verify",
+      "dst": "recsys/data.py#sha256_of",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/data.py#download",
+      "dst": "recsys/data.py#_verify",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/data.py#load_beauty",
+      "dst": "recsys/data.py#download",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/data.py#load_beauty",
+      "dst": "recsys/data.py#k_core",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/data.py#load_beauty",
+      "dst": "recsys/data.py#leave_one_out",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/data.py#load_beauty",
+      "dst": "recsys/data.py#read_reviews",
+      "kind": "calls",
       "lazy": false
     },
     {
