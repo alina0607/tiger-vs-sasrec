@@ -1,5 +1,7 @@
 # TIGER vs SASRec
 
+[![CI](https://github.com/alina0607/tiger-vs-sasrec/actions/workflows/ci.yml/badge.svg)](https://github.com/alina0607/tiger-vs-sasrec/actions/workflows/ci.yml)
+
 Two ways to recommend the next item a shopper will buy, built from scratch and compared on the same data:
 
 | | How it picks the top 10 | Paper |
@@ -7,10 +9,9 @@ Two ways to recommend the next item a shopper will buy, built from scratch and c
 | **SASRec** | Scores every item and takes the 10 highest scores | Kang & McAuley, *Self-Attentive Sequential Recommendation*, ICDM 2018 ([arXiv:1808.09781](https://arxiv.org/abs/1808.09781)) |
 | **TIGER** | Writes the next item's Semantic ID one code at a time (beam search) | Rajput et al., *Recommender Systems with Generative Retrieval*, NeurIPS 2023 ([arXiv:2305.05065](https://arxiv.org/abs/2305.05065)) |
 
-The project is also a study in Python design: the code around the models (registry, experiment
-tooling, evaluation) uses only the standard library, and shows my own function decorators,
-a metaclass and an inheritance hierarchy, each written for a concrete need in the pipeline.
-The models use PyTorch.
+The project is also a study in Python design: it shows my own function decorators, a metaclass
+and an inheritance hierarchy, each written for a concrete need in the pipeline. The models use
+PyTorch.
 
 > **Status:** work in progress. This README describes the plan; each section is filled in
 > as the code lands, with every number taken from a run.
@@ -48,17 +49,26 @@ evaluation, so my numbers can sit next to published ones.
 
 A table mapping each feature to its exact file and line will replace this one once the code exists.
 
-## Running the tests
+## Development
 
-Python 3.11 or newer. The tests use only the standard library's `unittest`:
+Python 3.11 or newer, managed with [uv](https://docs.astral.sh/uv/). `uv sync` creates the
+environment from `uv.lock`, including the development tools:
 
 ```bash
-python -m unittest -v
+uv sync
+uv run ruff format --check .   # formatting
+uv run ruff check .            # lint
+uv run mypy recsys tests       # type check
+uv run pytest                  # tests
 ```
+
+GitHub Actions runs the same four checks on every push and pull request
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)). On Linux the CPU build of PyTorch is
+installed, so CI does not download the CUDA libraries.
 
 ## Roadmap
 
-1. Package skeleton and `unittest` setup
+1. Package skeleton and test setup (pytest, ruff, mypy, CI)
 2. Model registry (metaclass) and base classes
 3. Decorators
 4. Data download and preprocessing (check: 22,363 users, 12,101 items)

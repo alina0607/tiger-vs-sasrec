@@ -18,6 +18,15 @@ embed = ["sentence-transformers>=2.2"]   # item text -> Sentence-T5 vectors (ste
 [tool.setuptools.packages.find]
 include = ["recsys*"]
 
+# On Linux (including CI) install the CPU build of torch: the default Linux wheel
+# pulls several gigabytes of CUDA libraries that a machine without a GPU never uses.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [dependency-groups]
 dev = [
