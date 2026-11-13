@@ -31,7 +31,13 @@ jobs:
           uv run ruff check .
 
       - name: Type check
-        run: uv run mypy recsys tests
+        run: uv run mypy recsys tests scripts
 
       - name: Test
         run: uv run pytest
+
+      # Fails if a commit changed recsys/ without the redrawn diagram.
+      - name: Class diagram is up to date
+        run: |
+          uv run python scripts/update_diagram.py
+          git status --porcelain -- docs/ | tee /dev/stderr | (! grep .)

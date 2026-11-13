@@ -20,7 +20,15 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: uv run mypy recsys tests
+        entry: uv run mypy recsys tests scripts
         language: system
         types: [python]
+        pass_filenames: false
+      # Redraws docs/classes.* with cartograph. When the diagram changes, the
+      # commit stops so the new files can be reviewed and added with git add.
+      - id: class-diagram
+        name: class diagram (docs/classes.*)
+        entry: uv run python scripts/update_diagram.py
+        language: system
+        files: ^recsys/.*\.py$
         pass_filenames: false

@@ -6,3 +6,5 @@ __pycache__/
 .DS_Store
 .idea/
 .venv/
+# Drawn on demand by scripts/update_diagram.py --with-tests
+/docs/classes_with_tests.*

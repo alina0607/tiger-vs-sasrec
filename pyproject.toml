@@ -22,6 +22,8 @@ include = ["recsys*"]
 # pulls several gigabytes of CUDA libraries that a machine without a GPU never uses.
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+# Class-diagram tool (scripts/update_diagram.py), pinned to a commit of its repo.
+cartograph = { git = "https://github.com/alina0607/cartograph", subdirectory = "extractor", rev = "481408d4fd4ba25ddde7bc6484cd9a74516ab95b" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
@@ -30,6 +32,7 @@ explicit = true
 
 [dependency-groups]
 dev = [
+    "cartograph",
     "mypy>=2.4.1",
     "pre-commit>=4.7.0",
     "pytest>=9.2.0",
