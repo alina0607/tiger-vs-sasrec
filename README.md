@@ -4,10 +4,14 @@
 
 Two ways to recommend the next item a shopper will buy, built from scratch and compared on the same data:
 
-| | How it picks the top 10 | Paper |
+| | **SASRec** | **TIGER** |
 |---|---|---|
-| **SASRec** | Scores every item and takes the 10 highest scores | Kang & McAuley, *Self-Attentive Sequential Recommendation*, ICDM 2018 ([arXiv:1808.09781](https://arxiv.org/abs/1808.09781)) |
-| **TIGER** | Writes the next item's Semantic ID one code at a time (beam search) | Rajput et al., *Recommender Systems with Generative Retrieval*, NeurIPS 2023 ([arXiv:2305.05065](https://arxiv.org/abs/2305.05065)) |
+| Paper | Kang & McAuley, *Self-Attentive Sequential Recommendation*, ICDM 2018 ([arXiv:1808.09781](https://arxiv.org/abs/1808.09781)) | Rajput et al., *Recommender Systems with Generative Retrieval*, NeurIPS 2023 ([arXiv:2305.05065](https://arxiv.org/abs/2305.05065)) |
+| Transformer | Decoder only, causal self-attention | Encoder-decoder (T5 style) |
+| An item is | An atomic ID with its own learned embedding | A Semantic ID: a few codes computed from the item's text (Sentence-T5 vector, then RQ-VAE), so similar items share leading codes |
+| How it picks the top 10 | Scores every item (dot product with the user's state) and keeps the 10 highest | Writes the next item's Semantic ID one code at a time (beam search), then looks the item up |
+| Kind of retrieval | Scoring and ranking | Generative retrieval: the model's weights act as the item index |
+| New items | Cannot recommend an item it never saw in training | Can, since a new item gets a Semantic ID from its text (shown in the paper on Beauty only, Section 4.3) |
 
 The project is also a study in Python design: it shows my own function decorators, a metaclass
 and an inheritance hierarchy, each written for a concrete need in the pipeline. The models use
