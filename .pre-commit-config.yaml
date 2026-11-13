@@ -30,5 +30,5 @@ repos:
         name: class diagram (docs/classes.*)
         entry: uv run python scripts/update_diagram.py
         language: system
-        files: ^recsys/.*\.py$
+        files: ^(recsys/.*\.py|docs/classes\.layout\.json)$
         pass_filenames: false

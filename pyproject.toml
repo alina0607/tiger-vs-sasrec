@@ -23,7 +23,7 @@ include = ["recsys*"]
 [tool.uv.sources]
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 # Class-diagram tool (scripts/update_diagram.py), pinned to a commit of its repo.
-cartograph = { git = "https://github.com/alina0607/cartograph", subdirectory = "extractor", rev = "481408d4fd4ba25ddde7bc6484cd9a74516ab95b" }
+cartograph = { git = "https://github.com/alina0607/cartograph", subdirectory = "extractor", rev = "b26e94fc38f408731e9788e94dca5c34377cd78a" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"

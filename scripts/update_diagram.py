@@ -2,7 +2,8 @@
 
 The pre-commit hook runs this and CI checks that docs/ is up to date. By default
 the diagram covers the recsys package only; --with-tests also draws the test
-classes and writes a separate, untracked pair of files.
+classes and writes a separate, untracked pair of files. If docs/classes.layout.json
+exists (a board saved with cartograph's save button), the page starts from it.
 """
 
 import argparse
@@ -12,6 +13,7 @@ from cartograph.cli import main as extract
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
+LAYOUT = DOCS / "classes.layout.json"
 # Local notes and this script are not part of the package.
 ALWAYS_EXCLUDED = ("notes", "scripts")
 
@@ -37,6 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     ]
     for pattern in excluded:
         cli_args += ["--exclude", pattern]
+    if LAYOUT.exists():
+        cli_args += ["--layout", str(LAYOUT)]
     return extract(cli_args)
 
 
