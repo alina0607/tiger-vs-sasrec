@@ -7,7 +7,7 @@
       "module": "recsys/base.py",
       "kind": "abstract",
       "lang": "python",
-      "doc": "Base class of every model.\n\nA concrete subclass must set the class attributes ``name`` and\n``config_cls``, and set ``self.config`` in ``__init__``; the metaclass\nchecks all three.",
+      "doc": "Base class of every model.\n\nA concrete subclass must set the class attributes `name` and\n`config_cls`, and set `self.config` in `__init__`; the metaclass\nchecks all three.",
       "attributes": [
         [
           "name",
@@ -25,13 +25,13 @@
       "methods": [
         {
           "name": "fit",
-          "doc": "Train on the training sequences of ``split``.",
-          "source": "def fit(self, split: Any) -> None:\n        \"\"\"Train on the training sequences of ``split``.\"\"\""
+          "doc": "Train on the training sequences of `split`.\n\nArgs:\n    split: The dataset split to train on.",
+          "source": "def fit(self, split: Any) -> None:\n        \"\"\"Train on the training sequences of `split`.\n\n        Args:\n            split: The dataset split to train on.\n        \"\"\""
         },
         {
           "name": "recommend",
-          "doc": "Return the top ``k`` item ids for each history, best first.",
-          "source": "def recommend(self, histories: Sequence[History], k: int) -> list[list[int]]:\n        \"\"\"Return the top ``k`` item ids for each history, best first.\"\"\""
+          "doc": "Return the top `k` item ids for each history, best first.\n\nArgs:\n    histories: One item-id sequence per user, oldest first.\n    k: How many items to return per user.\n\nReturns:\n    One list of `k` item ids per history.",
+          "source": "def recommend(self, histories: Sequence[History], k: int) -> list[list[int]]:\n        \"\"\"Return the top `k` item ids for each history, best first.\n\n        Args:\n            histories: One item-id sequence per user, oldest first.\n            k: How many items to return per user.\n\n        Returns:\n            One list of `k` item ids per history.\n        \"\"\""
         }
       ]
     },
@@ -41,18 +41,18 @@
       "module": "recsys/base.py",
       "kind": "abstract",
       "lang": "python",
-      "doc": "Recommender that scores every item and returns the highest-scoring ones.\n\nSubclasses implement ``score_all``; ranking and the removal of items the\nuser already has are shared here.",
+      "doc": "Recommender that scores every item and returns the highest-scoring ones.\n\nSubclasses implement `score_all`; ranking and the removal of items the\nuser already has are shared here.",
       "attributes": [],
       "methods": [
         {
           "name": "score_all",
-          "doc": "Return a ``(len(histories), n_items)`` matrix of scores.",
-          "source": "def score_all(self, histories: Sequence[History]) -> torch.Tensor:\n        \"\"\"Return a ``(len(histories), n_items)`` matrix of scores.\"\"\""
+          "doc": "Score every item for every history.\n\nReturns:\n    A `(len(histories), n_items)` tensor; higher is better.",
+          "source": "def score_all(self, histories: Sequence[History]) -> torch.Tensor:\n        \"\"\"Score every item for every history.\n\n        Returns:\n            A `(len(histories), n_items)` tensor; higher is better.\n        \"\"\""
         },
         {
           "name": "recommend",
-          "doc": "Return the ``k`` highest-scoring items not already in each history.",
-          "source": "def recommend(self, histories: Sequence[History], k: int) -> list[list[int]]:\n        \"\"\"Return the ``k`` highest-scoring items not already in each history.\"\"\"\n        with torch.no_grad():\n            scores = self.score_all(histories)\n            if scores.dim() != 2 or scores.shape[0] != len(histories):\n                raise ValueError(\n                    f\"score_all returned shape {tuple(scores.shape)}; \"\n                    f\"expected ({len(histories)}, n_items)\"\n                )\n            n_items = scores.shape[1]\n            if not 1 <= k <= n_items:\n                raise ValueError(f\"k must be between 1 and {n_items}, got {k}\")\n            # Work on a float copy: the masking below must not change a tensor\n            # the model may still hold, and -inf needs a floating-point dtype.\n            scores = scores.to(torch.float32, copy=True)\n            rows = [row for row, history in enumerate(histories) for _ in history]\n            cols = [item for history in histories for item in history]\n            scores[rows, cols] = float(\"-inf\")\n            if len(histories) and int(torch.isfinite(scores).sum(dim=1).min()) < k:\n                raise ValueError(f\"a history leaves fewer than k={k} unseen items\")\n            return scores.topk(k, dim=1).indices.tolist()"
+          "doc": "Return the `k` highest-scoring items not already in each history.\n\nRaises:\n    ValueError: If `score_all` returns the wrong shape, `k` is out of\n        range, or a history leaves fewer than `k` unseen items.",
+          "source": "def recommend(self, histories: Sequence[History], k: int) -> list[list[int]]:\n        \"\"\"Return the `k` highest-scoring items not already in each history.\n\n        Raises:\n            ValueError: If `score_all` returns the wrong shape, `k` is out of\n                range, or a history leaves fewer than `k` unseen items.\n        \"\"\"\n        with torch.no_grad():\n            scores = self.score_all(histories)\n            if scores.dim() != 2 or scores.shape[0] != len(histories):\n                raise ValueError(\n                    f\"score_all returned shape {tuple(scores.shape)}; \"\n                    f\"expected ({len(histories)}, n_items)\"\n                )\n            n_items = scores.shape[1]\n            if not 1 <= k <= n_items:\n                raise ValueError(f\"k must be between 1 and {n_items}, got {k}\")\n            # Work on a float copy: the masking below must not change a tensor\n            # the model may still hold, and -inf needs a floating-point dtype.\n            scores = scores.to(torch.float32, copy=True)\n            rows = [row for row, history in enumerate(histories) for _ in history]\n            cols = [item for history in histories for item in history]\n            scores[rows, cols] = float(\"-inf\")\n            if len(histories) and int(torch.isfinite(scores).sum(dim=1).min()) < k:\n                raise ValueError(f\"a history leaves fewer than k={k} unseen items\")\n            return scores.topk(k, dim=1).indices.tolist()"
         }
       ]
     },
@@ -62,7 +62,7 @@
       "module": "recsys/config.py",
       "kind": "class",
       "lang": "python",
-      "doc": "Fields shared by every model configuration.\n\nEach model declares its own subclass and names it in ``config_cls``.",
+      "doc": "Fields shared by every model configuration.\n\nEach model declares its own subclass and names it in `config_cls`.\n\nAttributes:\n    seed: Seed for every random number generator in a run.",
       "attributes": [
         [
           "seed",
@@ -77,7 +77,7 @@
       "module": "recsys/decorators.py",
       "kind": "function",
       "lang": "python",
-      "doc": "Record how long each call takes in the active RunLog.\n\nCalls that raise are not recorded.",
+      "doc": "Record how long each call of `func` takes in the active `RunLog`.\n\nCalls that raise are not recorded.\n\nArgs:\n    func: The function to time.\n\nReturns:\n    A wrapper with the same signature as `func`.",
       "attributes": [],
       "methods": []
     },
@@ -87,7 +87,7 @@
       "module": "recsys/registry.py",
       "kind": "metaclass",
       "lang": "python",
-      "doc": "Metaclass of ``recsys.base.Recommender`` and every model class.\n\nIt derives from ``ABCMeta`` because ``Recommender`` is an abstract base\nclass: a class can have only one metaclass, so this one must keep the\nabstract-method checks of ``ABCMeta``.",
+      "doc": "Metaclass of `recsys.base.Recommender` and every model class.\n\nIt derives from `ABCMeta` because `Recommender` is an abstract base\nclass: a class can have only one metaclass, so this one must keep the\nabstract-method checks of `ABCMeta`.",
       "attributes": [
         [
           "_registry",
@@ -106,18 +106,18 @@
         },
         {
           "name": "_check_declarations",
-          "doc": "Return the model name, or raise ``TypeError`` if a declaration is missing.",
-          "source": "def _check_declarations(cls: type, namespace: dict[str, Any]) -> str:\n        \"\"\"Return the model name, or raise ``TypeError`` if a declaration is missing.\"\"\"\n        # ``name`` must be set on the class itself: a subclass that inherited\n        # its parent's name would silently replace the parent in the registry.\n        model_name = namespace.get(\"name\")\n        if not isinstance(model_name, str) or not model_name:\n            raise TypeError(\n                f\"{cls.__qualname__} must set a class attribute 'name' \"\n                f\"(a non-empty string) to be registered\"\n            )\n        config_cls = getattr(cls, \"config_cls\", None)\n        if not (isinstance(config_cls, type) and issubclass(config_cls, ModelConfig)):\n            raise TypeError(\n                f\"{cls.__qualname__} must set 'config_cls' to a subclass of ModelConfig\"\n            )\n        return model_name"
+          "doc": "Check that a concrete model class declares `name` and `config_cls`.\n\nReturns:\n    The model name.\n\nRaises:\n    TypeError: If `name` is not set on the class itself, or `config_cls`\n        is not a subclass of `ModelConfig`.",
+          "source": "def _check_declarations(cls: type, namespace: dict[str, Any]) -> str:\n        \"\"\"Check that a concrete model class declares `name` and `config_cls`.\n\n        Returns:\n            The model name.\n\n        Raises:\n            TypeError: If `name` is not set on the class itself, or `config_cls`\n                is not a subclass of `ModelConfig`.\n        \"\"\"\n        # `name` must be set on the class itself: a subclass that inherited\n        # its parent's name would silently replace the parent in the registry.\n        model_name = namespace.get(\"name\")\n        if not isinstance(model_name, str) or not model_name:\n            raise TypeError(\n                f\"{cls.__qualname__} must set a class attribute 'name' \"\n                f\"(a non-empty string) to be registered\"\n            )\n        config_cls = getattr(cls, \"config_cls\", None)\n        if not (isinstance(config_cls, type) and issubclass(config_cls, ModelConfig)):\n            raise TypeError(\n                f\"{cls.__qualname__} must set 'config_cls' to a subclass of ModelConfig\"\n            )\n        return model_name"
         },
         {
           "name": "__call__",
           "doc": "",
-          "source": "def __call__(cls, *args: Any, **kwargs: Any) -> Any:\n        # ``super().__call__`` runs ``__new__`` and every ``__init__`` in the\n        # hierarchy; the instance returned here is fully constructed.\n        instance = super().__call__(*args, **kwargs)\n        config = getattr(instance, \"config\", None)\n        if not isinstance(config, cls.config_cls):\n            raise TypeError(\n                f\"{cls.__qualname__}.config must be a {cls.config_cls.__qualname__}, \"\n                f\"got {type(config).__qualname__}\"\n            )\n        return instance"
+          "source": "def __call__(cls, *args: Any, **kwargs: Any) -> Any:\n        # `super().__call__` runs `__new__` and every `__init__` in the\n        # hierarchy; the instance returned here is fully constructed.\n        instance = super().__call__(*args, **kwargs)\n        config = getattr(instance, \"config\", None)\n        if not isinstance(config, cls.config_cls):\n            raise TypeError(\n                f\"{cls.__qualname__}.config must be a {cls.config_cls.__qualname__}, \"\n                f\"got {type(config).__qualname__}\"\n            )\n        return instance"
         },
         {
           "name": "get",
-          "doc": "Return the model class registered under ``name``.",
-          "source": "def get(cls, name: str) -> type:\n        \"\"\"Return the model class registered under ``name``.\"\"\"\n        try:\n            return cls._registry[name]\n        except KeyError:\n            known = \", \".join(sorted(cls._registry)) or \"none\"\n            raise KeyError(f\"no model named {name!r}; registered: {known}\") from None"
+          "doc": "Return the model class registered under `name`.\n\nRaises:\n    KeyError: If no model has that name. The message lists the names\n        that are registered.",
+          "source": "def get(cls, name: str) -> type:\n        \"\"\"Return the model class registered under `name`.\n\n        Raises:\n            KeyError: If no model has that name. The message lists the names\n                that are registered.\n        \"\"\"\n        try:\n            return cls._registry[name]\n        except KeyError:\n            known = \", \".join(sorted(cls._registry)) or \"none\"\n            raise KeyError(f\"no model named {name!r}; registered: {known}\") from None"
         },
         {
           "name": "names",
@@ -137,7 +137,7 @@
       "module": "recsys/runlog.py",
       "kind": "class",
       "lang": "python",
-      "doc": "Seconds per call, keyed by label (usually a qualified function name).",
+      "doc": "Seconds per call, keyed by label.\n\nAttributes:\n    timings: Label (usually a qualified function name) -> seconds of each\n        call, in call order.",
       "attributes": [
         [
           "timings",
@@ -151,8 +151,8 @@
       "methods": [
         {
           "name": "add_timing",
-          "doc": "Record one call of label that took seconds.",
-          "source": "def add_timing(self, label: str, seconds: float) -> None:\n        \"\"\"Record one call of label that took seconds.\"\"\"\n        self.timings.setdefault(label, []).append(seconds)"
+          "doc": "Record one call.\n\nArgs:\n    label: What was timed, for example `SASRec.fit`.\n    seconds: How long the call took.",
+          "source": "def add_timing(self, label: str, seconds: float) -> None:\n        \"\"\"Record one call.\n\n        Args:\n            label: What was timed, for example `SASRec.fit`.\n            seconds: How long the call took.\n        \"\"\"\n        self.timings.setdefault(label, []).append(seconds)"
         },
         {
           "name": "to_dict",
@@ -161,8 +161,8 @@
         },
         {
           "name": "save",
-          "doc": "Write the log as JSON, creating parent directories.",
-          "source": "def save(self, path: Path) -> None:\n        \"\"\"Write the log as JSON, creating parent directories.\"\"\"\n        path.parent.mkdir(parents=True, exist_ok=True)\n        path.write_text(json.dumps(self.to_dict(), indent=2) + \"\\n\", encoding=\"utf-8\")"
+          "doc": "Write the log as JSON.\n\nArgs:\n    path: The file to write. Missing parent directories are created.",
+          "source": "def save(self, path: Path) -> None:\n        \"\"\"Write the log as JSON.\n\n        Args:\n            path: The file to write. Missing parent directories are created.\n        \"\"\"\n        path.parent.mkdir(parents=True, exist_ok=True)\n        path.write_text(json.dumps(self.to_dict(), indent=2) + \"\\n\", encoding=\"utf-8\")"
         },
         {
           "name": "__enter__",
@@ -182,7 +182,7 @@
       "module": "recsys/runlog.py",
       "kind": "function",
       "lang": "python",
-      "doc": "Return the active RunLog of this thread or task, or None.",
+      "doc": "Return the active `RunLog` of this thread or task, or `None`.",
       "attributes": [],
       "methods": []
     },

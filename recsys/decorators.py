@@ -15,9 +15,15 @@ logger = logging.getLogger(__name__)
 
 
 def timed(func: Callable[P, R]) -> Callable[P, R]:
-    """Record how long each call takes in the active RunLog.
+    """Record how long each call of `func` takes in the active `RunLog`.
 
     Calls that raise are not recorded.
+
+    Args:
+        func: The function to time.
+
+    Returns:
+        A wrapper with the same signature as `func`.
     """
     label = func.__qualname__
 

@@ -1,19 +1,19 @@
 """Metaclass that checks, registers and validates every recommender.
 
-``RecommenderMeta`` has three jobs:
+`RecommenderMeta` has three jobs:
 
-1. When a concrete model class is defined, check that it declares ``name``
-   and ``config_cls``. A mistake fails at the ``class`` statement, not later
+1. When a concrete model class is defined, check that it declares `name`
+   and `config_cls`. A mistake fails at the `class` statement, not later
    in a training run.
-2. Register the class under its ``name``, so a model can be chosen by a
+2. Register the class under its `name`, so a model can be chosen by a
    string (for example, from the command line).
 3. When a model is instantiated, check the finished object after every
-   ``__init__`` in its hierarchy has run: it must hold a config of the
+   `__init__` in its hierarchy has run: it must hold a config of the
    declared type.
 
-Jobs 1 and 2 could also be done with ``__init_subclass__``. Job 3 needs to
+Jobs 1 and 2 could also be done with `__init_subclass__`. Job 3 needs to
 run after construction, on every instance, and without relying on each
-subclass to call a check; only the metaclass's ``__call__`` wraps the whole
+subclass to call a check; only the metaclass's `__call__` wraps the whole
 construction.
 """
 
@@ -25,17 +25,17 @@ from recsys.config import ModelConfig
 
 
 class RecommenderMeta(ABCMeta):
-    """Metaclass of ``recsys.base.Recommender`` and every model class.
+    """Metaclass of `recsys.base.Recommender` and every model class.
 
-    It derives from ``ABCMeta`` because ``Recommender`` is an abstract base
+    It derives from `ABCMeta` because `Recommender` is an abstract base
     class: a class can have only one metaclass, so this one must keep the
-    abstract-method checks of ``ABCMeta``.
+    abstract-method checks of `ABCMeta`.
     """
 
     # One registry shared by the whole hierarchy: model name -> model class.
     _registry: ClassVar[dict[str, type]] = {}
 
-    # Set by every concrete model class and checked in ``__new__``.
+    # Set by every concrete model class and checked in `__new__`.
     config_cls: type[ModelConfig]
 
     def __new__(
@@ -63,8 +63,16 @@ class RecommenderMeta(ABCMeta):
 
     @staticmethod
     def _check_declarations(cls: type, namespace: dict[str, Any]) -> str:
-        """Return the model name, or raise ``TypeError`` if a declaration is missing."""
-        # ``name`` must be set on the class itself: a subclass that inherited
+        """Check that a concrete model class declares `name` and `config_cls`.
+
+        Returns:
+            The model name.
+
+        Raises:
+            TypeError: If `name` is not set on the class itself, or `config_cls`
+                is not a subclass of `ModelConfig`.
+        """
+        # `name` must be set on the class itself: a subclass that inherited
         # its parent's name would silently replace the parent in the registry.
         model_name = namespace.get("name")
         if not isinstance(model_name, str) or not model_name:
@@ -80,7 +88,7 @@ class RecommenderMeta(ABCMeta):
         return model_name
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
-        # ``super().__call__`` runs ``__new__`` and every ``__init__`` in the
+        # `super().__call__` runs `__new__` and every `__init__` in the
         # hierarchy; the instance returned here is fully constructed.
         instance = super().__call__(*args, **kwargs)
         config = getattr(instance, "config", None)
@@ -93,7 +101,12 @@ class RecommenderMeta(ABCMeta):
 
     @classmethod
     def get(cls, name: str) -> type:
-        """Return the model class registered under ``name``."""
+        """Return the model class registered under `name`.
+
+        Raises:
+            KeyError: If no model has that name. The message lists the names
+                that are registered.
+        """
         try:
             return cls._registry[name]
         except KeyError:

@@ -11,7 +11,10 @@ from dataclasses import dataclass
 class ModelConfig:
     """Fields shared by every model configuration.
 
-    Each model declares its own subclass and names it in ``config_cls``.
+    Each model declares its own subclass and names it in `config_cls`.
+
+    Attributes:
+        seed: Seed for every random number generator in a run.
     """
 
     seed: int = 42
