@@ -7,7 +7,7 @@ pipeline, two sequential recommenders compared on the same data, and uses that p
 reason for every design choice: my own decorators, a metaclass, an inheritance hierarchy and a
 context manager, each written for a concrete need. The models themselves use PyTorch.
 
-> **Status:** work in progress. Steps 1–7 of the [roadmap](#roadmap) are done; every number
+> **Status:** work in progress. Steps 1–8 of the [roadmap](#roadmap) are done; every number
 > in this README is taken from a run.
 
 ## Python design
@@ -22,7 +22,7 @@ context manager, each written for a concrete need. The models themselves use PyT
 | Frozen dataclasses, `NamedTuple` | [`recsys/config.py`](recsys/config.py), [`recsys/data.py`](recsys/data.py): `Split`, `Review`, `RemoteFile` | Configurations and data splits cannot change after they are built, so the values recorded for a run are the values it used |
 | Context manager that is also a decorator | [`recsys/decorators.py`](recsys/decorators.py): `with seeded(67):` (`contextlib.contextmanager`) | Seeds `random` and `torch` (CPU, MPS, CUDA) for one block and restores the previous state afterwards, even when the block raises; the seed lives in the model's configuration, so the run log records it |
 | Composition (*has-a*) | [`recsys/models/sasrec.py`](recsys/models/sasrec.py): `SASRec` has a `SASRecNet(nn.Module)` | `SASRec` *is a* `ScoringRecommender` and *has a* network, instead of inheriting from both `Recommender` and `nn.Module`, whose `__init__` and `__setattr__` rules would otherwise mix |
-| Planned | `@disk_cache(...)` (step 8) | Caching slow steps with `hashlib` + `pickle` |
+| Decorator factory that keeps results on disk | [`recsys/decorators.py`](recsys/decorators.py): `@disk_cache("item_embeddings")` | Stores each result as a pickle keyed by the SHA-256 of the function's name, a `version` and its arguments bound by `inspect.signature` and written as sorted JSON, so the key is the same in every process (unlike `hash()`); arguments JSON cannot write raise `TypeError`, and results are written to a temporary file and renamed. Encoding the 12,101 item texts takes 69 s once, then loads in 0.01 s |
 
 Full-ranking evaluation ([`recsys/evaluate.py`](recsys/evaluate.py)) is a free function rather
 than a method on `Recommender`, so no model can override how it is scored.
@@ -148,6 +148,20 @@ save the run log to `runs/`):
 uv run python scripts/run.py --model popularity
 uv run python scripts/run.py --model sasrec     # about 10 minutes on an Apple M-series GPU (MPS)
 ```
+
+Item text to vectors, the input of TIGER's Semantic IDs. It needs the optional `embed` extra
+(sentence-transformers, which CI does not install), downloads
+[sentence-t5-base](https://huggingface.co/sentence-transformers/sentence-t5-base) at a pinned
+commit on first use, and caches both the item sentences and the vectors under `cache/`:
+
+```bash
+uv sync --extra embed
+uv run python scripts/embed_items.py   # 12,101 x 768; about a minute once, then from the cache
+```
+
+Each item becomes one sentence with TIGER's fields in its order (the paper does not give the
+format), for example `Title: OPI Nail Lacquer, Simmer and Shimmer, 0.5-Fluid Ounce; Price: $12.00;
+Brand: OPI; Categories: Beauty > Makeup > Nails > Nail Polish`.
 
 ## Roadmap
 

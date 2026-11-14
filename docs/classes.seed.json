@@ -314,6 +314,36 @@
       "methods": []
     },
     {
+      "key": "recsys/decorators.py#_path_to_str",
+      "name": "_path_to_str",
+      "module": "recsys/decorators.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/decorators.py#cache_key",
+      "name": "cache_key",
+      "module": "recsys/decorators.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "SHA-256 of a call, as hex: the same label, version and arguments, the same key.\n\nRaises:\n    TypeError: If an argument is not a JSON type or a `Path`.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/decorators.py#disk_cache",
+      "name": "disk_cache",
+      "module": "recsys/decorators.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Keep each result of the decorated function in a pickle under `CACHE_DIR`.\n\nA call with the same arguments as an earlier one loads the stored result\ninstead of running the function. The key is the SHA-256 of the function's\nfull name, `version` and its arguments after `inspect.signature` binds\nthem (so `f(1)` and `f(x=1)` are the same call, defaults included). The\narguments are written as JSON with sorted keys, which gives the same text\nin every run; a `Path` becomes its absolute path (so `data/raw` and the\nsame folder written in full are one key), and any other type that JSON\ncannot write raises `TypeError` instead of being guessed at.\n\nThe cache cannot see a change inside the function: raise `version` when\nthe code changes what it returns. Only load pickles this package wrote.\n\nArgs:\n    name: Subdirectory of `CACHE_DIR` for this function's results.\n    version: Part of the key; raising it makes every stored result stale.\n\nReturns:\n    A decorator that keeps the function's name, docstring and signature.",
+      "attributes": [],
+      "methods": []
+    },
+    {
       "key": "recsys/decorators.py#seeded",
       "name": "seeded",
       "module": "recsys/decorators.py",
@@ -334,6 +364,26 @@
       "methods": []
     },
     {
+      "key": "recsys/embed.py#_load_model",
+      "name": "_load_model",
+      "module": "recsys/embed.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Load (downloading on first use) a Sentence-Transformers model.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/embed.py#embed_texts",
+      "name": "embed_texts",
+      "module": "recsys/embed.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Encode each text with a pretrained sentence encoder.\n\nThe encoder is only used, never trained. It runs on the GPU when there is\none (MPS or CUDA), which can change the last digits of the result; the\ncache stores whichever came first.\n\nArgs:\n    texts: One sentence per item (`recsys.items.load_item_texts`).\n    model_name: A Sentence-Transformers model on the Hugging Face Hub.\n    revision: Commit of the model repository; `None` takes the latest.\n\nReturns:\n    A float32 CPU tensor of shape `(len(texts), dimension)`; 768 for\n    Sentence-T5.",
+      "attributes": [],
+      "methods": []
+    },
+    {
       "key": "recsys/evaluate.py#answer_ranks",
       "name": "answer_ranks",
       "module": "recsys/evaluate.py",
@@ -350,6 +400,46 @@
       "kind": "function",
       "lang": "python",
       "doc": "Average every registered metric at every cutoff in `ks`.\n\nArgs:\n    model: A fitted recommender.\n    split: The data; its `valid()` or `test()` cases are scored.\n    part: Which cases to score.\n    ks: Cutoffs; the model is asked for its top `max(ks)` items.\n    batch_size: Users per `recommend` call. Bounds memory: a scoring model\n        builds a `batch_size x n_items` score matrix.\n\nReturns:\n    Mean score per `\"name@k\"`, for example `{\"ndcg@10\": 0.03, ...}`.\n\nRaises:\n    ValueError: If `part` is unknown or the model returns too few items.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/items.py#_clean",
+      "name": "_clean",
+      "module": "recsys/items.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Decode HTML entities until nothing changes, then strip spaces.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/items.py#item_text",
+      "name": "item_text",
+      "module": "recsys/items.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Write an item's title, price, brand and categories as one sentence.\n\nFor example `Title: OPI Nail Lacquer; Price: $12.00; Brand: OPI;\nCategories: Beauty > Makeup > Nails > Nail Polish`. Missing or blank\nfields are left out, HTML entities such as `&amp;` are decoded (some\ntitles are escaped twice, `&amp;#8482`, so until nothing changes), and an\nitem listed under several category paths gets them all, joined by ` | `.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/items.py#load_item_texts",
+      "name": "load_item_texts",
+      "module": "recsys/items.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Download (if needed) the metadata file and return one sentence per item.\n\nArgs:\n    data_dir: Where the data files are kept.\n    items: Item ids (`Split.items`); the result is in the same order.\n\nRaises:\n    KeyError: If an item has no metadata.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/items.py#read_item_meta",
+      "name": "read_item_meta",
+      "module": "recsys/items.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Read the metadata of `asins` from a gzipped metadata file.\n\nEach line is a Python literal, not JSON (it uses single quotes), so it is\nread with `ast.literal_eval`, which accepts only literals and never runs\ncode, unlike `eval`.\n\nArgs:\n    path: The metadata file, one item per line.\n    asins: Item ids to keep; other lines are skipped without parsing.\n\nReturns:\n    The metadata of each item found, by item id.\n\nRaises:\n    ValueError: If a line does not start with an item id.",
       "attributes": [],
       "methods": []
     },
@@ -842,8 +932,26 @@
       "lazy": false
     },
     {
+      "src": "recsys/decorators.py#disk_cache",
+      "dst": "recsys/decorators.py#cache_key",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
       "src": "recsys/decorators.py#timed",
       "dst": "recsys/runlog.py#current_run_log",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/embed.py#embed_texts",
+      "dst": "recsys/decorators.py#disk_cache",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/embed.py#embed_texts",
+      "dst": "recsys/embed.py#_load_model",
       "kind": "calls",
       "lazy": false
     },
@@ -856,6 +964,36 @@
     {
       "src": "recsys/evaluate.py#evaluate",
       "dst": "recsys/metrics.py#registered",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/items.py#item_text",
+      "dst": "recsys/items.py#_clean",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/items.py#load_item_texts",
+      "dst": "recsys/data.py#download",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/items.py#load_item_texts",
+      "dst": "recsys/decorators.py#disk_cache",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/items.py#load_item_texts",
+      "dst": "recsys/items.py#item_text",
+      "kind": "calls",
+      "lazy": false
+    },
+    {
+      "src": "recsys/items.py#load_item_texts",
+      "dst": "recsys/items.py#read_item_meta",
       "kind": "calls",
       "lazy": false
     },

@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-embed = ["sentence-transformers>=2.2"]   # item text -> Sentence-T5 vectors (step 8)
+embed = ["sentence-transformers>=6.3"]   # item text -> Sentence-T5 vectors (step 8)
 
 [tool.setuptools.packages.find]
 include = ["recsys*"]
@@ -54,6 +54,11 @@ python_version = "3.11"
 warn_unused_configs = true
 warn_return_any = true
 disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# Only the `embed` extra installs it; CI type-checks without it.
+module = "sentence_transformers.*"
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 # Test functions take pytest fixtures and return nothing; annotating every
