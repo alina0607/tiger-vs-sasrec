@@ -108,7 +108,7 @@ wheels = [
 [[package]]
 name = "cartograph"
 version = "0.1.0"
-source = { git = "https://github.com/alina0607/cartograph?subdirectory=extractor&rev=8228804adde6059dd2c2f3dcd269fada36f52fc6#8228804adde6059dd2c2f3dcd269fada36f52fc6" }
+source = { git = "https://github.com/alina0607/cartograph?subdirectory=extractor&rev=9056ff8519bb0ea72d8c9313ccb517ca243e345d#9056ff8519bb0ea72d8c9313ccb517ca243e345d" }
 dependencies = [
     { name = "tree-sitter" },
     { name = "tree-sitter-go" },
@@ -1656,7 +1656,7 @@ provides-extras = ["embed"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "cartograph", git = "https://github.com/alina0607/cartograph?subdirectory=extractor&rev=8228804adde6059dd2c2f3dcd269fada36f52fc6" },
+    { name = "cartograph", git = "https://github.com/alina0607/cartograph?subdirectory=extractor&rev=9056ff8519bb0ea72d8c9313ccb517ca243e345d" },
     { name = "mypy", specifier = ">=2.4.1" },
     { name = "pre-commit", specifier = ">=4.7.0" },
     { name = "pytest", specifier = ">=9.2.0" },
