@@ -2,6 +2,22 @@
   "version": 1,
   "nodes": [
     {
+      "key": "recsys/base.py#GenerativeRecommender",
+      "name": "GenerativeRecommender",
+      "module": "recsys/base.py",
+      "kind": "abstract",
+      "lang": "python",
+      "doc": "Recommender that writes the next item's Semantic ID instead of scoring items.\n\nPlanned for step 11, together with TIGER. `recommend` will become the\nshared template here, as it is in `ScoringRecommender`: `generate` the\n`k` most likely IDs with beam search, turn each back into an item with\nthe tokenizer, and skip IDs that no item has (the paper's Section 4.5)\nand items already in the history. Until then it stays abstract.",
+      "attributes": [],
+      "methods": [
+        {
+          "name": "generate",
+          "doc": "Write the `k` most likely next Semantic IDs for each history.\n\nReturns:\n    One list of `k` Semantic IDs per history, most likely first.",
+          "source": "@abstractmethod\ndef generate(\n    self, histories: Sequence[History], k: int\n) -> list[list[tuple[int, ...]]]:\n    \"\"\"Write the `k` most likely next Semantic IDs for each history.\n\n    Returns:\n        One list of `k` Semantic IDs per history, most likely first.\n    \"\"\""
+        }
+      ]
+    },
+    {
       "key": "recsys/base.py#Recommender",
       "name": "Recommender",
       "module": "recsys/base.py",
@@ -82,6 +98,41 @@
       "methods": []
     },
     {
+      "key": "recsys/config.py#RQVAEConfig",
+      "name": "RQVAEConfig",
+      "module": "recsys/config.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "The paper's RQ-VAE settings: an autoencoder whose middle is quantized.\n\nAttributes:\n    hidden: Encoder layer widths from the 768-wide input down.\n    latent: Width of the vector that is quantized.\n    beta: Weight of the commitment loss.\n    epochs: Training epochs.\n    lr: Adagrad learning rate.\n    batch_size: Items per training step.",
+      "attributes": [
+        [
+          "hidden",
+          "tuple[int, ...]"
+        ],
+        [
+          "latent",
+          "int"
+        ],
+        [
+          "beta",
+          "float"
+        ],
+        [
+          "epochs",
+          "int"
+        ],
+        [
+          "lr",
+          "float"
+        ],
+        [
+          "batch_size",
+          "int"
+        ]
+      ],
+      "methods": []
+    },
+    {
       "key": "recsys/config.py#SASRecConfig",
       "name": "SASRecConfig",
       "module": "recsys/config.py",
@@ -127,6 +178,92 @@
         ],
         [
           "patience",
+          "int"
+        ]
+      ],
+      "methods": []
+    },
+    {
+      "key": "recsys/config.py#SemanticIdConfig",
+      "name": "SemanticIdConfig",
+      "module": "recsys/config.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "How long a Semantic ID is: the paper's main setting is 3 levels of 256 codes.\n\nNot a `ModelConfig`: a tokenizer is part of TIGER, not a model of its own.\n\nAttributes:\n    levels: Codes computed from the item's vector, coarse to fine.\n    codebook_size: Possible values of each code.\n    seed: Seed for the clustering.",
+      "attributes": [
+        [
+          "levels",
+          "int"
+        ],
+        [
+          "codebook_size",
+          "int"
+        ],
+        [
+          "seed",
+          "int"
+        ]
+      ],
+      "methods": []
+    },
+    {
+      "key": "recsys/config.py#TIGERConfig",
+      "name": "TIGERConfig",
+      "module": "recsys/config.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "Configuration of `TIGER`; defaults are the settings the paper reports (p6).\n\nTIGER is not written yet (step 11). These are the values the paper\nreports, kept here so the shell already says what will be built.\n\nAttributes:\n    encoder_layers: Transformer layers that read the history.\n    decoder_layers: Transformer layers that write the next Semantic ID.\n    heads: Attention heads per layer.\n    head_dim: Width of each head; 6 x 64 = 384 is wider than `d_model`,\n        as T5 allows.\n    d_model: Width of the token embeddings.\n    d_ff: Width of the feed-forward layer.\n    dropout: Dropout rate.\n    user_tokens: Users are hashed into this many tokens.\n    max_history: Most recent items the encoder reads.\n    steps: Training steps on Beauty.\n    batch_size: Sequences per training step.\n    lr: Learning rate for the first `warmup_steps`, then inverse\n        square-root decay.\n    warmup_steps: Steps at the constant learning rate.",
+      "attributes": [
+        [
+          "encoder_layers",
+          "int"
+        ],
+        [
+          "decoder_layers",
+          "int"
+        ],
+        [
+          "heads",
+          "int"
+        ],
+        [
+          "head_dim",
+          "int"
+        ],
+        [
+          "d_model",
+          "int"
+        ],
+        [
+          "d_ff",
+          "int"
+        ],
+        [
+          "dropout",
+          "float"
+        ],
+        [
+          "user_tokens",
+          "int"
+        ],
+        [
+          "max_history",
+          "int"
+        ],
+        [
+          "steps",
+          "int"
+        ],
+        [
+          "batch_size",
+          "int"
+        ],
+        [
+          "lr",
+          "float"
+        ],
+        [
+          "warmup_steps",
           "int"
         ]
       ],
@@ -661,6 +798,69 @@
       "methods": []
     },
     {
+      "key": "recsys/models/tiger.py#TIGER",
+      "name": "TIGER",
+      "module": "recsys/models/tiger.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "TIGER: reads the history as Semantic IDs and writes the next item's ID.\n\nStill abstract: `fit`, `generate` and `recommend` come in step 11.\n\nAttributes:\n    tokenizer: Turns items into Semantic IDs and back.\n    net: The encoder-decoder.",
+      "attributes": [
+        [
+          "name",
+          ""
+        ],
+        [
+          "config_cls",
+          ""
+        ],
+        [
+          "config",
+          "TIGERConfig"
+        ],
+        [
+          "tokenizer",
+          ""
+        ],
+        [
+          "net",
+          ""
+        ]
+      ],
+      "methods": [
+        {
+          "name": "__init__",
+          "doc": "",
+          "source": "def __init__(\n    self,\n    config: TIGERConfig | None = None,\n    tokenizer: SemanticIdTokenizer | None = None,\n) -> None:\n    self.config = config or TIGERConfig()\n    # The default tokenizer is still abstract; step 9 writes it and removes\n    # this ignore. TIGER itself is abstract, so this line never runs yet.\n    self.tokenizer = tokenizer or ResidualKMeansTokenizer()  # type: ignore[abstract]\n    self.net = TIGERNet(self.config)"
+        }
+      ]
+    },
+    {
+      "key": "recsys/models/tiger.py#TIGERNet",
+      "name": "TIGERNet",
+      "module": "recsys/models/tiger.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "The encoder-decoder transformer (T5 style) of the paper.\n\nThe encoder reads a user token and the Semantic IDs of the history in\nboth directions; the decoder writes the next item's ID one code at a\ntime, looking only at the codes it already wrote and back at the encoder.\nWith 6 heads of 64 the attention is 384 wide while the tokens are 128\nwide, which `nn.Transformer` (attention as wide as the tokens) cannot\nexpress; step 11 decides how to build it.",
+      "attributes": [
+        [
+          "config",
+          ""
+        ]
+      ],
+      "methods": [
+        {
+          "name": "__init__",
+          "doc": "",
+          "source": "def __init__(self, config: TIGERConfig) -> None:\n    super().__init__()\n    self.config = config"
+        },
+        {
+          "name": "forward",
+          "doc": "Scores of the next code at each decoder position.\n\nRaises:\n    NotImplementedError: Always, until step 11.",
+          "source": "def forward(self, history: torch.Tensor, codes: torch.Tensor) -> torch.Tensor:\n    \"\"\"Scores of the next code at each decoder position.\n\n    Raises:\n        NotImplementedError: Always, until step 11.\n    \"\"\"\n    raise NotImplementedError(\"TIGERNet is written in step 11\")"
+        }
+      ]
+    },
+    {
       "key": "recsys/registry.py#RecommenderMeta",
       "name": "RecommenderMeta",
       "module": "recsys/registry.py",
@@ -788,6 +988,73 @@
       "methods": []
     },
     {
+      "key": "recsys/semantic_ids.py#RQVAETokenizer",
+      "name": "RQVAETokenizer",
+      "module": "recsys/semantic_ids.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "The paper's RQ-VAE: residual quantization inside a trained autoencoder.\n\nThe encoder shrinks each 768-wide vector to 32 numbers, residual\nquantization picks one code per level, and a decoder must rebuild the\nvector from the codes (Section 3.1). Planned after step 11.\n\nAttributes:\n    config: The layer widths and training settings of the paper.",
+      "attributes": [
+        [
+          "config",
+          "RQVAEConfig"
+        ]
+      ],
+      "methods": [
+        {
+          "name": "__init__",
+          "doc": "",
+          "source": "def __init__(self, config: RQVAEConfig | None = None) -> None:\n    super().__init__(config or RQVAEConfig())"
+        }
+      ]
+    },
+    {
+      "key": "recsys/semantic_ids.py#ResidualKMeansTokenizer",
+      "name": "ResidualKMeansTokenizer",
+      "module": "recsys/semantic_ids.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "Residual k-means: cluster the vectors, then cluster what each cluster missed.\n\nLevel 1 runs k-means on the item vectors; level 2 runs it on each vector\nminus its level-1 centre, and so on. Cheaper than the paper's RQ-VAE,\nwhich trains a network around the same idea; step 9 writes this one first.",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "recsys/semantic_ids.py#SemanticIdTokenizer",
+      "name": "SemanticIdTokenizer",
+      "module": "recsys/semantic_ids.py",
+      "kind": "abstract",
+      "lang": "python",
+      "doc": "Gives every item a Semantic ID and finds the item behind an ID.\n\nAttributes:\n    config: Number of levels and codes per level.",
+      "attributes": [
+        [
+          "config",
+          ""
+        ]
+      ],
+      "methods": [
+        {
+          "name": "__init__",
+          "doc": "",
+          "source": "def __init__(self, config: SemanticIdConfig | None = None) -> None:\n    self.config = config or SemanticIdConfig()"
+        },
+        {
+          "name": "fit",
+          "doc": "Learn the codebooks from the item vectors and give each item its ID.\n\nArgs:\n    embeddings: One row per item, `(n_items, 768)` from step 8.",
+          "source": "@abstractmethod\ndef fit(self, embeddings: torch.Tensor) -> None:\n    \"\"\"Learn the codebooks from the item vectors and give each item its ID.\n\n    Args:\n        embeddings: One row per item, `(n_items, 768)` from step 8.\n    \"\"\""
+        },
+        {
+          "name": "encode",
+          "doc": "Return each item's Semantic ID: `levels` codes plus the collision code.",
+          "source": "@abstractmethod\ndef encode(self, items: Sequence[int]) -> list[tuple[int, ...]]:\n    \"\"\"Return each item's Semantic ID: `levels` codes plus the collision code.\"\"\""
+        },
+        {
+          "name": "decode",
+          "doc": "Return the item with this Semantic ID, or `None` if no item has it.\n\nTIGER can write IDs that belong to no item; the paper reports about\n0.1-1.6% of the top 10 across its datasets (Section 4.5).",
+          "source": "@abstractmethod\ndef decode(self, semantic_id: Sequence[int]) -> int | None:\n    \"\"\"Return the item with this Semantic ID, or `None` if no item has it.\n\n    TIGER can write IDs that belong to no item; the paper reports about\n    0.1-1.6% of the top 10 across its datasets (Section 4.5).\n    \"\"\""
+        }
+      ]
+    },
+    {
       "key": "abc#ABCMeta",
       "name": "ABCMeta",
       "module": "abc",
@@ -860,6 +1127,12 @@
   ],
   "relations": [
     {
+      "src": "recsys/base.py#GenerativeRecommender",
+      "dst": "recsys/base.py#Recommender",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
       "src": "recsys/base.py#Recommender",
       "dst": "recsys/config.py#ModelConfig",
       "kind": "association",
@@ -884,7 +1157,19 @@
       "lazy": false
     },
     {
+      "src": "recsys/config.py#RQVAEConfig",
+      "dst": "recsys/config.py#SemanticIdConfig",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
       "src": "recsys/config.py#SASRecConfig",
+      "dst": "recsys/config.py#ModelConfig",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/config.py#TIGERConfig",
       "dst": "recsys/config.py#ModelConfig",
       "kind": "inherits",
       "lazy": false
@@ -1070,6 +1355,36 @@
       "lazy": false
     },
     {
+      "src": "recsys/models/tiger.py#TIGER",
+      "dst": "recsys/base.py#GenerativeRecommender",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/tiger.py#TIGER",
+      "dst": "recsys/config.py#TIGERConfig",
+      "kind": "composition",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/tiger.py#TIGER",
+      "dst": "recsys/models/tiger.py#TIGERNet",
+      "kind": "composition",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/tiger.py#TIGER",
+      "dst": "recsys/semantic_ids.py#ResidualKMeansTokenizer",
+      "kind": "composition",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/tiger.py#TIGERNet",
+      "dst": "torch.nn#Module",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
       "src": "recsys/registry.py#RecommenderMeta",
       "dst": "abc#ABCMeta",
       "kind": "inherits",
@@ -1079,6 +1394,30 @@
       "src": "recsys/registry.py#RecommenderMeta",
       "dst": "recsys/config.py#ModelConfig",
       "kind": "association",
+      "lazy": false
+    },
+    {
+      "src": "recsys/semantic_ids.py#RQVAETokenizer",
+      "dst": "recsys/config.py#RQVAEConfig",
+      "kind": "association",
+      "lazy": false
+    },
+    {
+      "src": "recsys/semantic_ids.py#RQVAETokenizer",
+      "dst": "recsys/semantic_ids.py#SemanticIdTokenizer",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/semantic_ids.py#ResidualKMeansTokenizer",
+      "dst": "recsys/semantic_ids.py#SemanticIdTokenizer",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/semantic_ids.py#SemanticIdTokenizer",
+      "dst": "recsys/config.py#SemanticIdConfig",
+      "kind": "composition",
       "lazy": false
     }
   ]

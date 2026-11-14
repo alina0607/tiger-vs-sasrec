@@ -2,8 +2,8 @@
 
 The hierarchy branches where the TIGER paper separates two ways of retrieving
 items. `ScoringRecommender` scores every item and returns the top k
-(popularity, SASRec). A generative branch that decodes Semantic IDs is added
-together with TIGER.
+(popularity, SASRec). `GenerativeRecommender` writes the Semantic ID of the
+next item one code at a time (TIGER); it is a shell until step 11.
 
 Item ids are column indices: column `j` of a score matrix is item `j`.
 """
@@ -96,3 +96,24 @@ class ScoringRecommender(Recommender):
             if len(histories) and int(torch.isfinite(scores).sum(dim=1).min()) < k:
                 raise ValueError(f"a history leaves fewer than k={k} unseen items")
             return scores.topk(k, dim=1).indices.tolist()
+
+
+class GenerativeRecommender(Recommender):
+    """Recommender that writes the next item's Semantic ID instead of scoring items.
+
+    Planned for step 11, together with TIGER. `recommend` will become the
+    shared template here, as it is in `ScoringRecommender`: `generate` the
+    `k` most likely IDs with beam search, turn each back into an item with
+    the tokenizer, and skip IDs that no item has (the paper's Section 4.5)
+    and items already in the history. Until then it stays abstract.
+    """
+
+    @abstractmethod
+    def generate(
+        self, histories: Sequence[History], k: int
+    ) -> list[list[tuple[int, ...]]]:
+        """Write the `k` most likely next Semantic IDs for each history.
+
+        Returns:
+            One list of `k` Semantic IDs per history, most likely first.
+        """

@@ -2,5 +2,6 @@
 
 from recsys.models.popularity import PopularityRecommender
 from recsys.models.sasrec import SASRec, SASRecNet
+from recsys.models.tiger import TIGER, TIGERNet
 
-__all__ = ["PopularityRecommender", "SASRec", "SASRecNet"]
+__all__ = ["TIGER", "PopularityRecommender", "SASRec", "SASRecNet", "TIGERNet"]
