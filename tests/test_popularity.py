@@ -64,7 +64,7 @@ def test_default_config_and_registered_name():
 def test_fit_is_timed_and_the_model_is_logged():
     with RunLog() as log:
         PopularityRecommender().fit(SPLIT)
-    assert log.models == [{"name": "popularity", "config": {"seed": 42}}]
+    assert log.models == [{"name": "popularity", "config": {"seed": 67}}]
     assert list(log.timings) == ["PopularityRecommender.fit"]
 
 

@@ -33,7 +33,7 @@ def test_run_writes_one_log_with_model_timings_and_both_parts(run_module, tmp_pa
     assert run_module.main(["--model", "popularity", "--runs-dir", str(tmp_path)]) == 0
     (path,) = tmp_path.glob("popularity-*.json")
     log = json.loads(path.read_text(encoding="utf-8"))
-    assert log["models"] == [{"name": "popularity", "config": {"seed": 42}}]
+    assert log["models"] == [{"name": "popularity", "config": {"seed": 67}}]
     assert set(log["results"]) == {"valid", "test"}
     assert set(log["results"]["test"]) == {"ndcg@5", "ndcg@10", "recall@5", "recall@10"}
     assert "PopularityRecommender.fit" in log["timings"]

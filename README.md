@@ -7,7 +7,7 @@ pipeline, two sequential recommenders compared on the same data, and uses that p
 reason for every design choice: my own decorators, a metaclass, an inheritance hierarchy and a
 context manager, each written for a concrete need. The models themselves use PyTorch.
 
-> **Status:** work in progress. Steps 1–6 of the [roadmap](#roadmap) are done; every number
+> **Status:** work in progress. Steps 1–7 of the [roadmap](#roadmap) are done; every number
 > in this README is taken from a run.
 
 ## Python design
@@ -15,12 +15,14 @@ context manager, each written for a concrete need. The models themselves use PyT
 | Feature | Where | What it is for |
 |---|---|---|
 | Metaclass | [`recsys/registry.py`](recsys/registry.py): `RecommenderMeta(abc.ABCMeta)` | Registers each model by name (`scripts/run.py --model popularity`), checks `name` and `config_cls` when the class is defined, and checks each model after its whole `__init__` chain has run, which `__init_subclass__` cannot do |
-| Abstract base classes, template method | [`recsys/base.py`](recsys/base.py): `Recommender` → `ScoringRecommender` → [`PopularityRecommender`](recsys/models/popularity.py) | A scoring model writes only `fit` and `score_all`; removing items the user already has and taking the top k are shared. A generative branch for TIGER joins later without changing evaluation |
+| Abstract base classes, template method | [`recsys/base.py`](recsys/base.py): `Recommender` → `ScoringRecommender` → [`PopularityRecommender`](recsys/models/popularity.py), [`SASRec`](recsys/models/sasrec.py) | A scoring model writes only `fit` and `score_all`; removing items the user already has and taking the top k are shared. A generative branch for TIGER joins later without changing evaluation |
 | Wrapping decorator | [`recsys/decorators.py`](recsys/decorators.py): `@timed` | Records how long each call takes in the active run log; `functools.wraps` and `ParamSpec` keep the signature for callers and for mypy |
 | Registering decorator factory | [`recsys/metrics.py`](recsys/metrics.py): `@metric("recall")` | Adds a metric to a registry and returns the function unchanged; a duplicate name fails at import. Evaluation computes every registered metric, so adding one needs no change there |
 | Context manager with a `ContextVar` | [`recsys/runlog.py`](recsys/runlog.py): `with RunLog() as log:` | Makes one run log active for the current thread or asyncio task; nested runs restore the outer log, even when the block raises. It records which model was built (the metaclass adds it), how long each step took, and the scores, and is saved as JSON under `runs/` |
 | Frozen dataclasses, `NamedTuple` | [`recsys/config.py`](recsys/config.py), [`recsys/data.py`](recsys/data.py): `Split`, `Review`, `RemoteFile` | Configurations and data splits cannot change after they are built, so the values recorded for a run are the values it used |
-| Planned | `@seeded(42)` (step 7), `@disk_cache(...)` (step 8), SASRec *has-a* `nn.Module` | Reproducible seeds; caching slow steps with `hashlib` + `pickle`; composition instead of inheriting from both `Recommender` and `nn.Module` |
+| Context manager that is also a decorator | [`recsys/decorators.py`](recsys/decorators.py): `with seeded(67):` (`contextlib.contextmanager`) | Seeds `random` and `torch` (CPU, MPS, CUDA) for one block and restores the previous state afterwards, even when the block raises; the seed lives in the model's configuration, so the run log records it |
+| Composition (*has-a*) | [`recsys/models/sasrec.py`](recsys/models/sasrec.py): `SASRec` has a `SASRecNet(nn.Module)` | `SASRec` *is a* `ScoringRecommender` and *has a* network, instead of inheriting from both `Recommender` and `nn.Module`, whose `__init__` and `__setattr__` rules would otherwise mix |
+| Planned | `@disk_cache(...)` (step 8) | Caching slow steps with `hashlib` + `pickle` |
 
 Full-ranking evaluation ([`recsys/evaluate.py`](recsys/evaluate.py)) is a free function rather
 than a method on `Recommender`, so no model can override how it is scored.
@@ -122,7 +124,7 @@ evaluation, so my numbers can sit next to published ones.
 | TIGER | 0.0648 | 0.0384 | TIGER paper, Table 1 |
 | TIGER (independent reimplementation) | 0.0594 | 0.0321 | [XiaoLongtaoo/TIGER](https://github.com/XiaoLongtaoo/TIGER) |
 | Popularity (this repo) | 0.0115 | 0.0055 | `scripts/run.py --model popularity` |
-| SASRec (this repo) | – | – | not run yet |
+| SASRec (this repo) | 0.0539 | 0.0281 | `scripts/run.py --model sasrec`, seed 67, stopped at epoch 160 (best validation at 110) |
 | TIGER (this repo) | – | – | not run yet |
 
 ## Development
@@ -144,6 +146,7 @@ save the run log to `runs/`):
 
 ```bash
 uv run python scripts/run.py --model popularity
+uv run python scripts/run.py --model sasrec     # about 10 minutes on an Apple M-series GPU (MPS)
 ```
 
 ## Roadmap

@@ -255,7 +255,7 @@ def test_metaclass_call_runs_on_every_instance():
 def test_a_built_model_is_recorded_in_the_active_run_log(toy_cls):
     with RunLog() as log:
         toy_cls(ToyConfig(size=5))
-    assert log.models == [{"name": "toy", "config": {"seed": 42, "size": 5}}]
+    assert log.models == [{"name": "toy", "config": {"seed": 67, "size": 5}}]
 
 
 def test_no_run_log_means_nothing_is_recorded(toy_cls):

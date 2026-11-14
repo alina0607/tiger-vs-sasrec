@@ -82,6 +82,57 @@
       "methods": []
     },
     {
+      "key": "recsys/config.py#SASRecConfig",
+      "name": "SASRecConfig",
+      "module": "recsys/config.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "Configuration of `SASRec`; defaults are the paper's settings for Beauty.\n\nAttributes:\n    hidden: Width `d` of the embeddings and every layer.\n    blocks: Number of self-attention blocks.\n    heads: Attention heads per block.\n    max_len: Longest history the model reads; older items are dropped.\n    dropout: Dropout rate (the paper uses 0.5 on the sparse Amazon data).\n    lr: Adam learning rate.\n    batch_size: Users per training step.\n    max_epochs: Upper bound on training epochs.\n    eval_every: Epochs between two validation scores.\n    patience: Validation checks without improvement before stopping.",
+      "attributes": [
+        [
+          "hidden",
+          "int"
+        ],
+        [
+          "blocks",
+          "int"
+        ],
+        [
+          "heads",
+          "int"
+        ],
+        [
+          "max_len",
+          "int"
+        ],
+        [
+          "dropout",
+          "float"
+        ],
+        [
+          "lr",
+          "float"
+        ],
+        [
+          "batch_size",
+          "int"
+        ],
+        [
+          "max_epochs",
+          "int"
+        ],
+        [
+          "eval_every",
+          "int"
+        ],
+        [
+          "patience",
+          "int"
+        ]
+      ],
+      "methods": []
+    },
+    {
       "key": "recsys/data.py#RemoteFile",
       "name": "RemoteFile",
       "module": "recsys/data.py",
@@ -263,6 +314,16 @@
       "methods": []
     },
     {
+      "key": "recsys/decorators.py#seeded",
+      "name": "seeded",
+      "module": "recsys/decorators.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "Seed `random` and `torch` for a block, then restore their previous state.\n\nWorks as `with seeded(67):` and, like every `contextmanager`, as a decorator\n`@seeded(67)`: each call of the decorated function gets the same numbers.\n`torch.manual_seed` also seeds MPS and CUDA; their states are restored too.\n`torch.random.fork_rng` does the torch half of this.\n\nArgs:\n    seed: The seed for both generators.",
+      "attributes": [],
+      "methods": []
+    },
+    {
       "key": "recsys/decorators.py#timed",
       "name": "timed",
       "module": "recsys/decorators.py",
@@ -374,6 +435,140 @@
           "source": "def score_all(self, histories: Sequence[History]) -> torch.Tensor:\n    \"\"\"Return the same popularity scores for every history.\n\n    Raises:\n        RuntimeError: If `fit` has not been called.\n    \"\"\"\n    if self._scores is None:\n        raise RuntimeError(\"call fit() before scoring\")\n    return self._scores.expand(len(histories), -1)"
         }
       ]
+    },
+    {
+      "key": "recsys/models/sasrec.py#SASRec",
+      "name": "SASRec",
+      "module": "recsys/models/sasrec.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "Trains `SASRecNet` with binary cross-entropy and one negative per position.\n\nTraining stops early when validation NDCG@10 has not improved for\n`patience` checks; the best checkpoint is kept.\n\nAttributes:\n    net: The network, built by `fit` once the number of items is known.\n    history: One entry per validation check: epoch, mean loss, NDCG@10.",
+      "attributes": [
+        [
+          "name",
+          ""
+        ],
+        [
+          "config_cls",
+          ""
+        ],
+        [
+          "config",
+          "SASRecConfig"
+        ],
+        [
+          "device",
+          ""
+        ],
+        [
+          "net",
+          "SASRecNet | None"
+        ],
+        [
+          "history",
+          "list[dict[str, float]]"
+        ]
+      ],
+      "methods": [
+        {
+          "name": "__init__",
+          "doc": "",
+          "source": "def __init__(\n    self, config: SASRecConfig | None = None, device: str | None = None\n) -> None:\n    self.config = config or SASRecConfig()\n    self.device = torch.device(\n        device or (\"mps\" if torch.backends.mps.is_available() else \"cpu\")\n    )\n    self.net: SASRecNet | None = None\n    self.history: list[dict[str, float]] = []"
+        },
+        {
+          "name": "fit",
+          "doc": "Train on `split.train()`, choosing the epoch by validation NDCG@10.",
+          "source": "@timed\ndef fit(self, split: Split) -> None:\n    \"\"\"Train on `split.train()`, choosing the epoch by validation NDCG@10.\"\"\"\n    with seeded(self.config.seed):\n        self._train(split)"
+        },
+        {
+          "name": "_train",
+          "doc": "",
+          "source": "def _train(self, split: Split) -> None:\n    cfg = self.config\n    self.net = SASRecNet(split.n_items, cfg).to(self.device)\n    inputs, targets = self._training_pairs(split.train(), split.n_items)\n    seen = [set(seq) for seq in split.train()]\n    optimizer = torch.optim.Adam(\n        self.net.parameters(), lr=cfg.lr, betas=(0.9, 0.98)\n    )\n    bce = nn.BCEWithLogitsLoss()\n    best, best_state, waited = -1.0, copy.deepcopy(self.net.state_dict()), 0\n    for epoch in range(1, cfg.max_epochs + 1):\n        negatives = _sample_negatives(targets, seen, split.n_items)\n        self.net.train()\n        losses = []\n        for rows in torch.randperm(len(inputs)).split(cfg.batch_size):\n            seqs, pos, neg = (\n                t[rows].to(self.device) for t in (inputs, targets, negatives)\n            )\n            hidden = self.net(seqs)\n            real = pos != self.net.pad\n            pos_logit = self.net.score(hidden, pos)[real]\n            neg_logit = self.net.score(hidden, neg)[real]\n            loss = bce(pos_logit, torch.ones_like(pos_logit)) + bce(\n                neg_logit, torch.zeros_like(neg_logit)\n            )\n            optimizer.zero_grad()\n            loss.backward()\n            optimizer.step()\n            losses.append(loss.item())\n        if epoch % cfg.eval_every:\n            continue\n        ndcg = evaluate(self, split, part=\"valid\", ks=(10,))[\"ndcg@10\"]\n        mean_loss = sum(losses) / len(losses)\n        self.history.append({\"epoch\": epoch, \"loss\": mean_loss, \"ndcg@10\": ndcg})\n        logger.info(\"epoch %d loss %.4f valid ndcg@10 %.4f\", epoch, mean_loss, ndcg)\n        if ndcg > best:\n            best, best_state, waited = ndcg, copy.deepcopy(self.net.state_dict()), 0\n        else:\n            waited += 1\n            if waited >= cfg.patience:\n                break\n    self.net.load_state_dict(best_state)"
+        },
+        {
+          "name": "_training_pairs",
+          "doc": "Inputs and next-item targets, left-padded: (users, max_len) each.",
+          "source": "def _training_pairs(\n    self, sequences: Sequence[History], n_items: int\n) -> tuple[torch.Tensor, torch.Tensor]:\n    \"\"\"Inputs and next-item targets, left-padded: (users, max_len) each.\"\"\"\n    length = self.config.max_len\n    inputs = torch.full((len(sequences), length), n_items, dtype=torch.long)\n    targets = torch.full((len(sequences), length), n_items, dtype=torch.long)\n    for row, seq in enumerate(sequences):\n        x, y = list(seq[:-1])[-length:], list(seq[1:])[-length:]\n        inputs[row, length - len(x) :] = torch.tensor(x)\n        targets[row, length - len(y) :] = torch.tensor(y)\n    return inputs, targets"
+        },
+        {
+          "name": "score_all",
+          "doc": "Score every item from the hidden state at each history's last position.\n\nRaises:\n    RuntimeError: If `fit` has not been called.",
+          "source": "def score_all(self, histories: Sequence[History]) -> torch.Tensor:\n    \"\"\"Score every item from the hidden state at each history's last position.\n\n    Raises:\n        RuntimeError: If `fit` has not been called.\n    \"\"\"\n    if self.net is None:\n        raise RuntimeError(\"call fit() before scoring\")\n    length, pad = self.config.max_len, self.net.pad\n    seqs = torch.full((len(histories), length), pad, dtype=torch.long)\n    for row, history in enumerate(histories):\n        last = list(history)[-length:]\n        if last:\n            seqs[row, length - len(last) :] = torch.tensor(last)\n    was_training = self.net.training\n    self.net.eval()\n    with torch.no_grad():\n        hidden: torch.Tensor = self.net(seqs.to(self.device))[:, -1, :]\n        scores = hidden @ self.net.item_emb.weight[:pad].T\n    self.net.train(was_training)\n    return scores.cpu()"
+        }
+      ]
+    },
+    {
+      "key": "recsys/models/sasrec.py#SASRecNet",
+      "name": "SASRecNet",
+      "module": "recsys/models/sasrec.py",
+      "kind": "class",
+      "lang": "python",
+      "doc": "The network: item and position embeddings, causal self-attention blocks.\n\nItem `n_items` is the padding id; it has an embedding row that stays zero.\nThe item embedding is shared between the input and the output scores.",
+      "attributes": [
+        [
+          "pad",
+          ""
+        ],
+        [
+          "item_emb",
+          ""
+        ],
+        [
+          "pos_emb",
+          ""
+        ],
+        [
+          "drop",
+          ""
+        ],
+        [
+          "attn_norms",
+          ""
+        ],
+        [
+          "attns",
+          ""
+        ],
+        [
+          "ffn_norms",
+          ""
+        ],
+        [
+          "ffns",
+          ""
+        ],
+        [
+          "last_norm",
+          ""
+        ]
+      ],
+      "methods": [
+        {
+          "name": "__init__",
+          "doc": "",
+          "source": "def __init__(self, n_items: int, config: SASRecConfig) -> None:\n    super().__init__()\n    d = config.hidden\n    self.pad = n_items\n    self.item_emb = nn.Embedding(n_items + 1, d, padding_idx=n_items)\n    self.pos_emb = nn.Embedding(config.max_len, d)\n    self.drop = nn.Dropout(config.dropout)\n    self.attn_norms = nn.ModuleList(\n        nn.LayerNorm(d, eps=1e-8) for _ in range(config.blocks)\n    )\n    self.attns = nn.ModuleList(\n        nn.MultiheadAttention(\n            d, config.heads, dropout=config.dropout, batch_first=True\n        )\n        for _ in range(config.blocks)\n    )\n    self.ffn_norms = nn.ModuleList(\n        nn.LayerNorm(d, eps=1e-8) for _ in range(config.blocks)\n    )\n    self.ffns = nn.ModuleList(\n        nn.Sequential(\n            nn.Linear(d, d),\n            nn.Dropout(config.dropout),\n            nn.ReLU(),\n            nn.Linear(d, d),\n            nn.Dropout(config.dropout),\n        )\n        for _ in range(config.blocks)\n    )\n    self.last_norm = nn.LayerNorm(d, eps=1e-8)\n    # PyTorch starts embeddings at N(0, 1); scores of 50-dimensional dot products\n    # then saturate the sigmoid and training crawls. Xavier, as in the reference\n    # PyTorch port, starts every weight matrix small.\n    for param in self.parameters():\n        if param.dim() > 1:\n            nn.init.xavier_normal_(param)\n    with torch.no_grad():\n        self.item_emb.weight[n_items].zero_()"
+        },
+        {
+          "name": "forward",
+          "doc": "Hidden state per position: (batch, length) item ids -> (batch, length, d).",
+          "source": "def forward(self, seqs: torch.Tensor) -> torch.Tensor:\n    \"\"\"Hidden state per position: (batch, length) item ids -> (batch, length, d).\"\"\"\n    length = seqs.shape[1]\n    x = self.item_emb(seqs) * math.sqrt(self.item_emb.embedding_dim)\n    x = x + self.pos_emb(torch.arange(length, device=seqs.device))\n    keep = (seqs != self.pad).unsqueeze(-1)\n    x = self.drop(x) * keep\n    # True above the diagonal: position t may not look at t+1, t+2, ...\n    future = torch.triu(\n        torch.ones(length, length, dtype=torch.bool, device=seqs.device), 1\n    )\n    for attn_norm, attn, ffn_norm, ffn in zip(\n        self.attn_norms, self.attns, self.ffn_norms, self.ffns, strict=True\n    ):\n        q = attn_norm(x)\n        out, _ = attn(q, x, x, attn_mask=future, need_weights=False)\n        x = ffn_norm(q + out)\n        x = (x + ffn(x)) * keep\n    hidden: torch.Tensor = self.last_norm(x)\n    return hidden"
+        },
+        {
+          "name": "score",
+          "doc": "Dot product of each hidden state with its item's embedding.",
+          "source": "def score(self, hidden: torch.Tensor, items: torch.Tensor) -> torch.Tensor:\n    \"\"\"Dot product of each hidden state with its item's embedding.\"\"\"\n    emb: torch.Tensor = self.item_emb(items)\n    return (hidden * emb).sum(-1)"
+        }
+      ]
+    },
+    {
+      "key": "recsys/models/sasrec.py#_sample_negatives",
+      "name": "_sample_negatives",
+      "module": "recsys/models/sasrec.py",
+      "kind": "function",
+      "lang": "python",
+      "doc": "One random unbought item per real target (the paper's j not in S_u).",
+      "attributes": [],
+      "methods": []
     },
     {
       "key": "recsys/registry.py#RecommenderMeta",
@@ -513,6 +708,56 @@
       "methods": []
     },
     {
+      "key": "torch.nn#Dropout",
+      "name": "Dropout",
+      "module": "torch.nn",
+      "kind": "ml",
+      "lang": "python",
+      "doc": "",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "torch.nn#Embedding",
+      "name": "Embedding",
+      "module": "torch.nn",
+      "kind": "ml",
+      "lang": "python",
+      "doc": "",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "torch.nn#LayerNorm",
+      "name": "LayerNorm",
+      "module": "torch.nn",
+      "kind": "ml",
+      "lang": "python",
+      "doc": "",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "torch.nn#Module",
+      "name": "Module",
+      "module": "torch.nn",
+      "kind": "ml",
+      "lang": "python",
+      "doc": "",
+      "attributes": [],
+      "methods": []
+    },
+    {
+      "key": "torch.nn#ModuleList",
+      "name": "ModuleList",
+      "module": "torch.nn",
+      "kind": "ml",
+      "lang": "python",
+      "doc": "",
+      "attributes": [],
+      "methods": []
+    },
+    {
       "key": "typing#NamedTuple",
       "name": "NamedTuple",
       "module": "typing",
@@ -544,6 +789,12 @@
     },
     {
       "src": "recsys/config.py#PopularityConfig",
+      "dst": "recsys/config.py#ModelConfig",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/config.py#SASRecConfig",
       "dst": "recsys/config.py#ModelConfig",
       "kind": "inherits",
       "lazy": false
@@ -629,6 +880,54 @@
     {
       "src": "recsys/models/popularity.py#PopularityRecommender",
       "dst": "recsys/config.py#PopularityConfig",
+      "kind": "composition",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/sasrec.py#SASRec",
+      "dst": "recsys/base.py#ScoringRecommender",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/sasrec.py#SASRec",
+      "dst": "recsys/config.py#SASRecConfig",
+      "kind": "composition",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/sasrec.py#SASRec",
+      "dst": "recsys/models/sasrec.py#SASRecNet",
+      "kind": "association",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/sasrec.py#SASRecNet",
+      "dst": "torch.nn#Dropout",
+      "kind": "composition",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/sasrec.py#SASRecNet",
+      "dst": "torch.nn#Embedding",
+      "kind": "composition",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/sasrec.py#SASRecNet",
+      "dst": "torch.nn#LayerNorm",
+      "kind": "composition",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/sasrec.py#SASRecNet",
+      "dst": "torch.nn#Module",
+      "kind": "inherits",
+      "lazy": false
+    },
+    {
+      "src": "recsys/models/sasrec.py#SASRecNet",
+      "dst": "torch.nn#ModuleList",
       "kind": "composition",
       "lazy": false
     },

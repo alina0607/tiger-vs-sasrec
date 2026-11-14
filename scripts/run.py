@@ -5,6 +5,7 @@ configuration, timings, scores) is written to `runs/` as JSON.
 """
 
 import argparse
+import logging
 from datetime import datetime
 from pathlib import Path
 
@@ -28,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--data-dir", type=Path, default=ROOT / "data" / "raw")
     parser.add_argument("--runs-dir", type=Path, default=ROOT / "runs")
     args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     with RunLog() as log:
         split = load_beauty(args.data_dir)
