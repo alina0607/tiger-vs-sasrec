@@ -1321,7 +1321,7 @@
     {
       "src": "recsys/models/sasrec.py#SASRec",
       "dst": "recsys/models/sasrec.py#SASRecNet",
-      "kind": "association",
+      "kind": "composition",
       "lazy": false
     },
     {
@@ -1399,7 +1399,7 @@
     {
       "src": "recsys/semantic_ids.py#RQVAETokenizer",
       "dst": "recsys/config.py#RQVAEConfig",
-      "kind": "association",
+      "kind": "composition",
       "lazy": false
     },
     {
